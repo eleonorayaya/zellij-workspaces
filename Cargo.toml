@@ -1,0 +1,9 @@
+[package]
+name = "zellij-workspaces"
+version = "0.1.0"
+authors = ["eleonora tennyson <dev@tennyson.io>"]
+
+[dependencies]
+regex = "1.11.1"
+zellij-tile = "0.42.2"
+

@@ -1,0 +1,47 @@
+layout {
+  cwd "/Users/eleonora/dev/"
+  pane size=1 borderless=true {
+    plugin location="zellij:tab-bar"
+  }
+
+  pane {
+    pane {
+      pane split_direction="vertical" {
+        pane size="50%" command="bash" name="COMPILE AND RELOAD PLUGIN" {
+          // args "-c" "cargo build && zellij action start-or-reload-plugin file:target/wasm32-wasi/debug/zellij-sessionizer.wasm"
+          // if you have "watchexec" installed, you can comment the above line and uncomment the below one to build + reload the plugin on fs changes
+          args "-c" "watchexec 'cargo build && zellij action start-or-reload-plugin file:target/wasm32-wasip1/debug/zellij-sessionizer.wasm'"
+        }
+        pane {
+          plugin location="file:target/wasm32-wasip1/debug/zellij-sessionizer.wasm"
+        }
+      }
+    }
+  }
+
+  pane size=1 borderless=true {
+    plugin location="zjstatus" {
+      format_left  "#[fg=#3e8fb0,bold] {session}#[] {tabs}"
+      format_right "{command_git_branch}"
+      format_space "#[]"
+
+      mode_normal          "#[] "
+
+      tab_normal               "#[fg=#9ccfd8] {name} {fullscreen_indicator}{sync_indicator}{floating_indicator}"
+      tab_active               "#[fg=#c4a7e7,bold,italic] {name} {fullscreen_indicator}{sync_indicator}{floating_indicator}"
+      tab_fullscreen_indicator "□ "
+      tab_sync_indicator       "  "
+      tab_floating_indicator   "󰉈 "
+
+      command_git_branch_command     "git rev-parse --abbrev-ref HEAD"
+      command_git_branch_format      "#[fg=#eb6f92] {stdout} "
+      command_git_branch_interval    "10"
+      command_git_branch_rendermode  "static"
+
+      datetime          "#[fg=#9399B2] {format} "
+      datetime_format   "%A, %d %b %Y %H:%M"
+      datetime_timezone "America/Los_Angeles"
+    }
+  }
+}
+

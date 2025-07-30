@@ -7,5 +7,5 @@ clean:
 
 deploy:
 	cargo build --target $(TARGET) --release
-	@cp $(shell pwd)/target/$(TARGET)/release/zellij-sessionizer.wasm ~/.config/zellij/plugins
+	@cp $(shell pwd)/target/$(TARGET)/release/zellij-workspaces.wasm ~/.config/zellij/plugins
 

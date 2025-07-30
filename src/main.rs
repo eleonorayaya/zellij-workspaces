@@ -30,12 +30,6 @@ impl State {
     }
 
     fn render_pick_workspace(&mut self, _all: bool) {
-        // let workspaces = self.workspace_manager.list_workspace_dirs();
-        // for space in workspaces {
-        //     println!("{}", space);
-        // }
-        //
-
         for session in self.session_manager.list_all_sessions() {
             println!("{}", session.render())
         }
@@ -48,7 +42,6 @@ impl ZellijPlugin for State {
     fn load(&mut self, configuration: BTreeMap<String, String>) {
         self.config = Config::from(configuration);
         self.session_manager = SessionManager::from(&self.config);
-        // self.workspace_manager = WorkspaceManager::from(&self.config);
 
         request_permission(&[
             PermissionType::RunCommands,

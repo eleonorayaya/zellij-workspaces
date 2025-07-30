@@ -2,6 +2,7 @@
 name = "zellij-workspaces"
 version = "0.1.0"
 authors = ["eleonora tennyson <dev@tennyson.io>"]
+edition = "2024"
 
 [dependencies]
 regex = "1.11.1"

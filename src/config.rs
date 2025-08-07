@@ -1,33 +1,40 @@
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-use crate::ROOT;
-
 #[derive(Debug)]
 pub struct Config {
-    pub dirs: Vec<PathBuf>,
+    pub extra_dirs: Vec<PathBuf>,
+    pub root_dirs: Vec<PathBuf>,
 }
 
 impl Default for Config {
     fn default() -> Self {
         Self {
-            dirs: vec![PathBuf::from(ROOT)],
+            extra_dirs: vec![],
+            root_dirs: vec![],
         }
     }
 }
 
-fn parse_dirs(dirs: &str) -> Vec<PathBuf> {
+fn parse_dir_str(dirs: &String) -> Vec<PathBuf> {
     return dirs.split(';').map(PathBuf::from).collect();
+}
+
+fn parse_dirs(maybe_config_str: Option<&String>) -> Vec<PathBuf> {
+    match maybe_config_str {
+        Some(config_str) => parse_dir_str(config_str),
+        _ => vec![],
+    }
 }
 
 impl From<BTreeMap<String, String>> for Config {
     fn from(config: BTreeMap<String, String>) -> Self {
-        let dirs: Vec<PathBuf> = match config.get("root_dirs") {
-            Some(root_dirs) => parse_dirs(root_dirs),
-            _ => vec![PathBuf::from(ROOT)],
-        };
-
-        Self { dirs }
+        let root_dirs = parse_dirs(config.get("root_dirs"));
+        let extra_dirs = parse_dirs(config.get("extra_dirs"));
+        Self {
+            extra_dirs: extra_dirs,
+            root_dirs: root_dirs,
+        }
     }
 }
 

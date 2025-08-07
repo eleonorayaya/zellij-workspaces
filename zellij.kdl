@@ -7,13 +7,19 @@ layout {
   pane {
     pane {
       pane split_direction="vertical" {
-        pane size="50%" command="bash" name="COMPILE AND RELOAD PLUGIN" {
+        pane size="30%" command="bash" name="COMPILE AND RELOAD PLUGIN" {
           // args "-c" "cargo build && zellij action start-or-reload-plugin file:target/wasm32-wasi/debug/zellij-workspaces.wasm"
           // if you have "watchexec" installed, you can comment the above line and uncomment the below one to build + reload the plugin on fs changes
           args "-c" "watchexec 'cargo build && zellij action start-or-reload-plugin file:target/wasm32-wasip1/debug/zellij-workspaces.wasm'"
         }
+        pane size="30%" command="bash" name="logs" {
+          args "-c" "tail -f \"$(find /var/folders -type f -name 'zellij.log' 2> /dev/null)\""
+        }
         pane {
-          plugin location="file:target/wasm32-wasip1/debug/zellij-workspaces.wasm"
+          plugin location="file:/Users/eleonora/dev/zellij-workspaces/target/wasm32-wasip1/debug/zellij-workspaces.wasm" {
+            cwd "/"
+            root_dirs "/Users/eleonora/"
+          }
         }
       }
     }

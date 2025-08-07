@@ -64,40 +64,37 @@ impl State {
         &mut self,
         key: KeyWithModifier,
     ) -> Result<bool, Box<dyn std::error::Error>> {
-        match key {
-            KeyWithModifier {
-                bare_key: BareKey::Esc,
-                key_modifiers: _,
-            } => {
-                // close_self();
-                self.reload();
+        match key.bare_key {
+            BareKey::Esc => {
+                close_self();
 
                 Ok(false)
             }
-            KeyWithModifier {
-                bare_key: BareKey::Down,
-                key_modifiers: _,
-            } => {
-                self.picker.handle_down();
-                Ok(true)
-            }
-            KeyWithModifier {
-                bare_key: BareKey::Up,
-                key_modifiers: _,
-            } => {
+            BareKey::Up | BareKey::Char('k') => {
                 self.picker.handle_up();
                 Ok(true)
             }
-            KeyWithModifier {
-                bare_key: BareKey::Enter,
-                key_modifiers: _,
-            } => {
+            BareKey::Down | BareKey::Char('j') => {
+                self.picker.handle_down();
+                Ok(true)
+            }
+            BareKey::Char('r') if key.has_modifiers(&[KeyModifier::Ctrl]) => {
+                self.reload();
+                Ok(false)
+            }
+            BareKey::Char('d') if key.has_modifiers(&[KeyModifier::Shift, KeyModifier::Ctrl]) => {
+                self.session_manager.clear_dead_sessions();
+
+                Ok(false)
+            }
+            BareKey::Enter => {
                 if let Some(selected) = self.picker.get_selection() {
                     let sessions = self.session_manager.list_all_sessions();
                     self.workspace_manager
                         .activate_workspace(&selected, sessions);
                 }
 
+                close_self();
                 Ok(false)
             }
             _ => {
@@ -142,7 +139,7 @@ impl ZellijPlugin for State {
                 self.session_manager.update_sessions(sessions);
             }
             Event::FileSystemDelete(paths) => {
-                eprintln!("Fs updated: {:#?}", paths);
+                // eprintln!("Fs updated: {:#?}", paths);
             }
             Event::Key(key) => match self.handle_key_event(key) {
                 Ok(rerender_needed) => should_render = rerender_needed,
@@ -151,7 +148,9 @@ impl ZellijPlugin for State {
                     should_render = false;
                 }
             },
-            _ => eprintln!("Unhandled event: {:#?}", event),
+            _ => {
+                // eprintln!("Unhandled event: {:#?}", event)
+            }
         }
 
         should_render

@@ -1,6 +1,6 @@
 use regex::Regex;
 use std::fs::{DirEntry, exists, read_dir};
-use std::path::{Component, Path, PathBuf};
+use std::path::{Component, Path, PathBuf, StripPrefixError};
 use zellij_tile::prelude::*;
 
 use super::workspace::Workspace;
@@ -27,6 +27,13 @@ fn strip_leading_slash(path: &Path) -> PathBuf {
 fn build_host_path(path: PathBuf) -> PathBuf {
     let clean_path = strip_leading_slash(&path);
     PathBuf::from(ROOT).join(clean_path)
+}
+
+fn build_os_path(path: PathBuf) -> Result<PathBuf, StripPrefixError> {
+    let stripped_path = path.strip_prefix(Path::new(ROOT))?;
+    let joined_path = Path::new("/").join(stripped_path).to_path_buf();
+
+    Ok(joined_path)
 }
 
 // TODO: home replacement stuff
@@ -75,7 +82,15 @@ impl WorkspaceManager {
         &mut self,
         workspace: &Workspace,
         active_sessions: Vec<SessionDetail>,
-    ) {
+    ) -> Result<(), StripPrefixError> {
+        let session_name = workspace.session_name();
+        let cwd = build_os_path(workspace.dir.path.clone())?;
+
+        eprintln!("Activating session {} with cwd {:#?}", session_name, cwd);
+
+        switch_session_with_cwd(Some(&session_name), Some(cwd));
+
+        Ok(())
     }
 
     // TODO: Add ignored dirs
@@ -84,8 +99,6 @@ impl WorkspaceManager {
 
         for root in self.root_dirs.clone() {
             let dir_path = build_host_path(root);
-
-            eprintln!("Dir path: {}", dir_path.to_string_lossy());
 
             for entry in read_dir(dir_path)? {
                 let entry = entry?;

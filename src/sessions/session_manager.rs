@@ -39,6 +39,11 @@ impl SessionManager {
         }
     }
 
+    pub fn clear_dead_sessions(&self) {
+        eprintln!("Clearing dead sessions");
+        delete_all_dead_sessions()
+    }
+
     fn store_session(&mut self, session_info: SessionInfo) -> Result<(), std::io::Error> {
         self.sessions.push(SessionDetail::new(session_info));
 

@@ -2,13 +2,14 @@ use zellij_tile::prelude::*;
 
 use crate::workspaces::Workspace;
 
-pub struct Picker<'a> {
+#[derive(Default)]
+pub struct Picker {
     cursor: usize,
-    workspaces: Vec<Workspace<'a>>,
+    workspaces: Vec<Workspace>,
 }
 
-impl<'a: 'b, 'b> From<Vec<Workspace<'a>>> for Picker<'b> {
-    fn from(workspaces: Vec<Workspace<'a>>) -> Self {
+impl From<Vec<Workspace>> for Picker {
+    fn from(workspaces: Vec<Workspace>) -> Self {
         Self {
             cursor: 0,
             workspaces: workspaces,
@@ -16,23 +17,8 @@ impl<'a: 'b, 'b> From<Vec<Workspace<'a>>> for Picker<'b> {
     }
 }
 
-impl Picker<'_> {
-    pub fn handle_up(&mut self) {
-        if self.cursor > 0 {
-            self.cursor -= 1;
-        } else {
-            self.cursor = self.workspaces.len() - 1;
-        }
-    }
-
-    pub fn handle_down(&mut self) {
-        if self.cursor < self.workspaces.len() - 1 {
-            self.cursor += 1;
-        } else {
-            self.cursor = 0;
-        }
-    }
-
+impl Picker {
+    // TODO: sort workspaces by name or last used
     pub fn render(&self, rows: usize, cols: usize) {
         let workspace_count = self.workspaces.len();
 
@@ -67,6 +53,30 @@ impl Picker<'_> {
                 print_text(item);
                 println!();
             });
+    }
+
+    pub fn get_selection(&self) -> Option<Workspace> {
+        if self.cursor < self.workspaces.len() {
+            Some(self.workspaces[self.cursor].clone())
+        } else {
+            None
+        }
+    }
+
+    pub fn handle_up(&mut self) {
+        if self.cursor > 0 {
+            self.cursor -= 1;
+        } else {
+            self.cursor = self.workspaces.len() - 1;
+        }
+    }
+
+    pub fn handle_down(&mut self) {
+        if self.cursor < self.workspaces.len() - 1 {
+            self.cursor += 1;
+        } else {
+            self.cursor = 0;
+        }
     }
 }
 

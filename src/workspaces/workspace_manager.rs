@@ -1,33 +1,60 @@
 use regex::Regex;
-use std::fs::{DirEntry, read_dir};
-use std::path::{Path, PathBuf};
+use std::fs::{DirEntry, exists, read_dir};
+use std::path::{Component, Path, PathBuf};
 use zellij_tile::prelude::*;
 
 use super::workspace::Workspace;
 use super::workspace_dir::WorkspaceDir;
 use crate::config::Config;
+use crate::sessions::SessionDetail;
 
 const ROOT: &str = "/host";
 const HOME_PATTERN: &str = r"/(Users|home)/[^/]*";
 
-#[derive(Default)]
-pub struct WorkspaceManager<'a> {
-    cwd: PathBuf,
-    workspaces: Vec<Workspace<'a>>,
+fn strip_leading_slash(path: &Path) -> PathBuf {
+    let mut components_iter = path.components();
+
+    // Skip the RootDir component if it's present
+    if let Some(Component::RootDir) = components_iter.next() {
+        // We've skipped the root, now collect the rest
+        components_iter.collect()
+    } else {
+        // No leading slash, return a clone of the original path
+        path.to_path_buf()
+    }
 }
 
-impl From<&Config> for WorkspaceManager<'_> {
-    fn from(_config: &Config) -> Self {
-        let cwd = get_plugin_ids().initial_cwd;
+fn build_host_path(path: PathBuf) -> PathBuf {
+    let clean_path = strip_leading_slash(&path);
+    PathBuf::from(ROOT).join(clean_path)
+}
 
+// TODO: home replacement stuff
+// let home_regex = Regex::new(HOME_PATTERN).unwrap();
+// // let cwd_str = self.cwd.to_string_lossy().into_owned();
+// let pretty_cwd = home_regex.replace(&cwd_str, "~");
+fn prettify_path(path: PathBuf) -> String {
+    path.to_string_lossy().to_string()
+}
+
+#[derive(Default)]
+pub struct WorkspaceManager {
+    extra_dirs: Vec<PathBuf>,
+    root_dirs: Vec<PathBuf>,
+    workspaces: Vec<Workspace>,
+}
+
+impl From<&Config> for WorkspaceManager {
+    fn from(config: &Config) -> Self {
         Self {
-            cwd,
+            extra_dirs: config.extra_dirs.clone(),
+            root_dirs: config.root_dirs.clone(),
             workspaces: vec![],
         }
     }
 }
 
-impl WorkspaceManager<'_> {
+impl WorkspaceManager {
     pub fn list_workspaces(&self) -> Vec<Workspace> {
         self.workspaces.clone()
     }
@@ -44,31 +71,55 @@ impl WorkspaceManager<'_> {
         Ok(())
     }
 
-    pub fn get_workspace_dirs(&self) -> Result<Vec<WorkspaceDir>, std::io::Error> {
-        let home_regex = Regex::new(HOME_PATTERN).unwrap();
-        let cwd_str = self.cwd.to_string_lossy().into_owned();
-        let pretty_cwd = home_regex.replace(&cwd_str, "~");
+    pub fn activate_workspace(
+        &mut self,
+        workspace: &Workspace,
+        active_sessions: Vec<SessionDetail>,
+    ) {
+    }
 
+    // TODO: Add ignored dirs
+    pub fn get_workspace_dirs(&self) -> Result<Vec<WorkspaceDir>, std::io::Error> {
         let mut results: Vec<WorkspaceDir> = vec![];
 
-        for entry in read_dir(ROOT)? {
-            let entry = entry?;
-            let path_buf = entry.path();
-            let path_string_lossy = path_buf.to_string_lossy().into_owned();
-            let pretty_path = path_string_lossy.replace(ROOT, &pretty_cwd);
+        for root in self.root_dirs.clone() {
+            let dir_path = build_host_path(root);
 
-            let file_type = entry.file_type()?;
-            if !file_type.is_dir() {
-                continue;
+            eprintln!("Dir path: {}", dir_path.to_string_lossy());
+
+            for entry in read_dir(dir_path)? {
+                let entry = entry?;
+
+                let file_type = entry.file_type()?;
+                if !file_type.is_dir() {
+                    continue;
+                }
+
+                if !self.is_git_dir(&entry)? {
+                    continue;
+                }
+
+                results.push(WorkspaceDir {
+                    pretty_path: prettify_path(entry.path()),
+                    path: entry.path(),
+                })
             }
+        }
 
-            if !self.is_git_dir(&entry)? {
+        for extra_dir in self.extra_dirs.clone() {
+            let dir_path = build_host_path(extra_dir).to_owned();
+
+            if !exists(dir_path.clone())? {
+                eprintln!(
+                    "Skipping nonexistent extra dir {}",
+                    dir_path.to_string_lossy()
+                );
                 continue;
             }
 
             results.push(WorkspaceDir {
-                pretty_path,
-                path: path_string_lossy,
+                pretty_path: prettify_path(dir_path.clone()),
+                path: dir_path,
             })
         }
 
@@ -76,16 +127,9 @@ impl WorkspaceManager<'_> {
     }
 
     pub fn scan_host_dirs(&self, config: &Config) {
-        let host = PathBuf::from(ROOT);
-
-        for dir in config.dirs.clone() {
-            let relative_path = match dir.strip_prefix(self.cwd.as_path()) {
-                Ok(p) => p,
-                Err(_) => continue,
-            };
-
-            let host_path = host.join(relative_path);
-            scan_host_folder(&host_path);
+        for dir in config.root_dirs.clone() {
+            let host_dir = build_host_path(dir);
+            scan_host_folder(&host_dir);
         }
     }
 

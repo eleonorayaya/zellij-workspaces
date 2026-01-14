@@ -22,18 +22,23 @@ impl Picker {
     pub fn render(&self, rows: usize, cols: usize) {
         let workspace_count = self.workspaces.len();
 
+        if workspace_count == 0 {
+            println!("No workspaces!");
+            return;
+        }
+
         let from = self
             .cursor
             .saturating_sub(rows.saturating_sub(1) / 2)
             .min(workspace_count.saturating_sub(rows));
 
-        let missing_rows = rows.saturating_sub(workspace_count);
-
-        if missing_rows > 0 {
-            for _ in 0..missing_rows {
-                println!();
-            }
-        }
+        // let missing_rows = rows.saturating_sub(workspace_count);
+        //
+        // if missing_rows > 0 {
+        //     for _ in 0..missing_rows {
+        //         println!();
+        //     }
+        // }
 
         self.workspaces
             .clone()

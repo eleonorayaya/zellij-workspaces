@@ -4,6 +4,9 @@ BIN = zellij-workspaces.wasm
 .PHONY: clean dev reload deploy
 
 
+dev:
+	@zellij action new-tab --layout ./zellij.kdl
+
 clean:
 	@pkill watchexec
 	@rm -r ~/Library/Caches/org.Zellij-Contributors.Zellij/

@@ -142,6 +142,8 @@ impl WorkspaceManager {
     pub fn scan_host_dirs(&self, config: &Config) {
         for dir in config.root_dirs.clone() {
             let host_dir = build_host_path(dir);
+            eprintln!("Scanning workspace root: {:#?}", host_dir);
+
             scan_host_folder(&host_dir);
         }
     }

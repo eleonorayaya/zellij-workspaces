@@ -13,3 +13,6 @@ zellij-plugin/target
 # Contains mutation testing data
 **/mutants.out*/
 
+out/
+.task/
+

@@ -1,0 +1,20 @@
+version: '3'
+
+tasks:
+  build:
+    sources:
+      - '**/*.go'
+    cmds:
+      - go build -o out/main cmd/main.go
+  dev:
+    deps:
+      - build
+    watch: true
+    cmds:
+      - ./out/main serve
+  fmt:
+    sources:
+      - '**/*.go'
+    cmds:
+      - go fmt ./...
+

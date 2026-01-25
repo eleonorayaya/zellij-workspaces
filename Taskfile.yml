@@ -19,4 +19,4 @@ tasks:
 
   dev:
     cmds:
-      - zellij action new-tab --layout dev.dkl
+      - zellij action new-tab --layout dev.kdl --name dev

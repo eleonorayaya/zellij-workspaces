@@ -1,0 +1,51 @@
+layout {
+    pane size=2 borderless=true {
+      plugin location="zjstatus" {
+        format_left  "#[fg=#4a4a4a,bold] {session}#[] {tabs}"
+        format_right "{command_git_branch}"
+        format_space "#[]"
+
+        mode_normal          "#[] "
+
+        tab_normal               "#[fg=#8a7873] {name} {fullscreen_indicator}{sync_indicator}{floating_indicator}"
+        tab_active               "#[fg=#a87bb7,bold,italic] {name} {fullscreen_indicator}{sync_indicator}{floating_indicator}"
+        tab_fullscreen_indicator "□ "
+        tab_sync_indicator       "  "
+        tab_floating_indicator   "󰉈 "
+
+        command_git_branch_command     "git rev-parse --abbrev-ref HEAD"
+        command_git_branch_format      "#[fg=#d16577] {stdout} "
+        command_git_branch_interval    "10"
+        command_git_branch_rendermode  "static"
+
+        datetime          "#[fg=#8a7873] {format} "
+        datetime_format   "%A, %d %b %Y %H:%M"
+        datetime_timezone "America/Los_Angeles"
+      }
+    }
+
+  pane {
+    pane {
+      pane split_direction="vertical" {
+        pane size="40%" command="bash" name="server" {
+          args "-c" "task -w daemon"
+        }
+
+        pane size="40%" command="bash" name="logs" cwd="zellij-plugin" {
+          args "-c" "task logs"
+        }
+
+        pane split_direction="horizontal" size="20%" {
+          pane size="80%" command="bash" name="COMPILE AND RELOAD PLUGIN" cwd="zellij-plugin" {
+            args "-c" "task -w deploy"
+          }
+
+          pane {
+            plugin location="file:~/.config/zellij/plugins/utena.wasm" { }
+          }
+        }
+      }
+    }
+  }
+}
+

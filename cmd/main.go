@@ -15,7 +15,7 @@ var rootCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(internal.ServeCmd)
+	rootCmd.AddCommand(internal.DaemonCommand)
 }
 
 func main() {
@@ -24,3 +24,4 @@ func main() {
 		os.Exit(1)
 	}
 }
+

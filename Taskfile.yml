@@ -6,15 +6,17 @@ tasks:
       - '**/*.go'
     cmds:
       - go build -o out/main cmd/main.go
-  dev:
+  daemon:
     deps:
       - build
-    watch: true
     cmds:
-      - ./out/main serve
+      - ./out/main daemon
   fmt:
     sources:
       - '**/*.go'
     cmds:
       - go fmt ./...
 
+  dev:
+    cmds:
+      - zellij action new-tab --layout dev.dkl

@@ -1,0 +1,20 @@
+
+version: '3'
+vars:
+  TARGET: 'wasm32-wasip1'
+  BIN: 'utena.wasm'
+tasks:
+  build:
+    sources:
+      - 'src/**/*.rs'
+    cmds:
+      - cargo build --target {{.TARGET}} --release
+  deploy:
+    deps:
+      - build
+    cmds:
+      - cp "$(pwd)"/target/{{.TARGET}}/release/{{.BIN}} ~/.config/zellij/plugins/
+      - zellij action start-or-reload-plugin file:~/.config/zellij/plugins/{{.BIN}}
+  logs:
+    cmds:
+      - tail -f "$(find /var/folders -type f -name 'zellij.log' 2> /dev/null)" 

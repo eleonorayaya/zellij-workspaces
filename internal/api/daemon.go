@@ -1,8 +1,14 @@
-package internal
+package api
 
 import (
+	"os"
+	"os/signal"
+	"syscall"
+
 	"context"
 	"net/http"
+
+	"github.com/eleonorayaya/utena/internal/workspace"
 
 	"github.com/eleonorayaya/utena/internal/session"
 	"github.com/eleonorayaya/utena/internal/zellij"
@@ -11,7 +17,19 @@ import (
 	"github.com/go-chi/render"
 )
 
-func serveAPI(ctx context.Context, workspaceMgr *WorkspaceManager, zellijSvc *zellij.ZellijService) {
+func StartDaemon() {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	workspaceMgr := workspace.NewWorkspaceManager()
+
+	zellijSvc := zellij.NewZellijService()
+	go serveAPI(ctx, workspaceMgr, zellijSvc)
+
+	<-ctx.Done()
+}
+
+func serveAPI(ctx context.Context, workspaceMgr *workspace.WorkspaceManager, zellijSvc *zellij.ZellijService) {
 	r := chi.NewRouter()
 
 	r.Use(middleware.RequestID)

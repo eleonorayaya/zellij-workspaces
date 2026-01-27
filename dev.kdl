@@ -28,7 +28,7 @@ layout {
     pane {
       pane split_direction="vertical" {
         pane size="40%" command="bash" name="server" {
-          args "-c" "task -w daemon"
+          args "-c" "task -w daemon:run"
         }
 
         pane size="40%" command="bash" name="logs" cwd="zellij-plugin" {

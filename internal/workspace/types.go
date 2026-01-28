@@ -1,0 +1,42 @@
+package workspace
+
+import (
+	"net/http"
+
+	"github.com/go-chi/render"
+)
+
+type WorkspaceResponse struct {
+	*Workspace
+}
+
+func NewWorkspaceResponse(workspace *Workspace) *WorkspaceResponse {
+	return &WorkspaceResponse{Workspace: workspace}
+}
+
+func (wr *WorkspaceResponse) Render(w http.ResponseWriter, r *http.Request) error {
+
+	return nil
+}
+
+type WorkspaceListResponse struct {
+	Workspaces []Workspace `json:"workspaces"`
+}
+
+func NewWorkspaceListResponse(workspaces []Workspace) *WorkspaceListResponse {
+	return &WorkspaceListResponse{Workspaces: workspaces}
+}
+
+func (wlr *WorkspaceListResponse) Render(w http.ResponseWriter, r *http.Request) error {
+
+	return nil
+}
+
+func RenderWorkspaceList(workspaces []Workspace) []render.Renderer {
+	list := make([]render.Renderer, len(workspaces))
+	for i, workspace := range workspaces {
+		ws := workspace
+		list[i] = NewWorkspaceResponse(&ws)
+	}
+	return list
+}

@@ -46,3 +46,12 @@ func ErrUnknown(err error) render.Renderer {
 		ErrorText:      err.Error(),
 	}
 }
+
+func ErrNotFound() render.Renderer {
+	return &ErrResponse{
+		Err:            nil,
+		HTTPStatusCode: 404,
+		StatusText:     "Resource not found.",
+		ErrorText:      "The requested resource does not exist.",
+	}
+}

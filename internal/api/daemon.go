@@ -1,16 +1,15 @@
 package api
 
 import (
+	"context"
+	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 
-	"context"
-	"net/http"
-
-	"github.com/eleonorayaya/utena/internal/workspace"
-
 	"github.com/eleonorayaya/utena/internal/session"
+	"github.com/eleonorayaya/utena/internal/workspace"
 	"github.com/eleonorayaya/utena/internal/zellij"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -21,15 +20,40 @@ func StartDaemon() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	workspaceMgr := workspace.NewWorkspaceManager()
+	workspaceModule := workspace.NewWorkspaceModule()
+	sessionModule := session.NewSessionModule(workspaceModule)
+	zellijModule := zellij.NewZellijModule(sessionModule)
 
-	zellijSvc := zellij.NewZellijService()
-	go serveAPI(ctx, workspaceMgr, zellijSvc)
+	if err := workspaceModule.OnAppStart(ctx); err != nil {
+		log.Fatalf("Failed to initialize workspace module: %v", err)
+	}
+
+	if err := sessionModule.OnAppStart(ctx); err != nil {
+		log.Fatalf("Failed to initialize session module: %v", err)
+	}
+
+	if err := zellijModule.OnAppStart(ctx); err != nil {
+		log.Fatalf("Failed to initialize zellij module: %v", err)
+	}
+
+	go serveAPI(ctx, workspaceModule, sessionModule, zellijModule)
 
 	<-ctx.Done()
+
+	if err := zellijModule.OnAppEnd(ctx); err != nil {
+		log.Printf("Error cleaning up zellij module: %v", err)
+	}
+
+	if err := sessionModule.OnAppEnd(ctx); err != nil {
+		log.Printf("Error cleaning up session module: %v", err)
+	}
+
+	if err := workspaceModule.OnAppEnd(ctx); err != nil {
+		log.Printf("Error cleaning up workspace module: %v", err)
+	}
 }
 
-func serveAPI(ctx context.Context, workspaceMgr *workspace.WorkspaceManager, zellijSvc *zellij.ZellijService) {
+func serveAPI(ctx context.Context, workspaceModule *workspace.WorkspaceModule, sessionModule *session.SessionModule, zellijModule *zellij.ZellijModule) {
 	r := chi.NewRouter()
 
 	r.Use(middleware.RequestID)
@@ -38,8 +62,10 @@ func serveAPI(ctx context.Context, workspaceMgr *workspace.WorkspaceManager, zel
 	r.Use(middleware.URLFormat)
 	r.Use(render.SetContentType(render.ContentTypeJSON))
 
-	r.Mount("/sessions", session.NewSessionController())
-	r.Mount("/zellij", zellij.NewZellijController(zellijSvc))
+	r.Mount("/workspaces", workspaceModule.Routes())
+	r.Mount("/sessions", sessionModule.Routes())
+	r.Mount("/zellij", zellijModule.Routes())
 
+	log.Println("Starting daemon on :3333")
 	http.ListenAndServe(":3333", r)
 }

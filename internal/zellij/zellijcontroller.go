@@ -1,47 +1,35 @@
 package zellij
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/eleonorayaya/utena/internal/common"
-	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
 )
 
-type SessionUpdate struct {
-	Name             string
-	IsCurrentSession bool
+type ZellijController struct {
+	service *ZellijService
 }
 
-type UpdateSessionsRequest struct {
-	Id       string
-	Sessions []SessionUpdate
+func NewZellijController(service *ZellijService) *ZellijController {
+	return &ZellijController{
+		service: service,
+	}
 }
 
-func (s *UpdateSessionsRequest) Bind(r *http.Request) error {
-	return nil
-}
+func (c *ZellijController) UpdateSessions(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 
-func NewZellijController(z *ZellijService) chi.Router {
-	r := chi.NewRouter()
+	req := &UpdateSessionsRequest{}
+	if err := render.Bind(r, req); err != nil {
+		render.Render(w, r, common.ErrInvalidRequest(err))
+		return
+	}
 
-	r.Put("/sessions", func(w http.ResponseWriter, r *http.Request) {
-		req := &UpdateSessionsRequest{}
-		if err := render.Bind(r, req); err != nil {
-			render.Render(w, r, common.ErrUnknown(err))
-			return
-		}
+	if err := c.service.ProcessSessionUpdate(ctx, req); err != nil {
+		render.Render(w, r, common.ErrUnknown(err))
+		return
+	}
 
-		fmt.Printf("Request: %v\n", req)
-
-		if err := z.OnSessionUpdate(r.Context()); err != nil {
-			render.Render(w, r, common.ErrUnknown(err))
-			return
-		}
-
-		render.JSON(w, r, map[string]string{"Ok": "ok"})
-	})
-
-	return r
+	render.JSON(w, r, map[string]string{"status": "ok"})
 }

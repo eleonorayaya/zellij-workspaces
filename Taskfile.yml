@@ -34,6 +34,12 @@ tasks:
     cmds:
       - go fmt ./...
 
+  test:
+    sources:
+      - '**/*.go'
+    cmds:
+      - go test ./...
+
   dev:
     cmds:
       - zellij action new-tab --layout dev.kdl --name dev

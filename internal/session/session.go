@@ -7,5 +7,6 @@ type Session struct {
 	WorkspaceID string    `json:"workspace_id"`
 	IsAttached  bool      `json:"is_attached"`
 	IsActive    bool      `json:"is_active"`
+	IsDead      bool      `json:"is_dead"`
 	LastUsedAt  time.Time `json:"last_used_at"`
 }

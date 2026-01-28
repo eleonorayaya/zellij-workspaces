@@ -183,7 +183,6 @@ func TestDaemon_ListSessions(t *testing.T) {
 func TestDaemon_ZellijSessionUpdate(t *testing.T) {
 	router := setupTestRouter(t)
 
-	// Send session update from Zellij plugin
 	updateReq := &zellij.UpdateSessionsRequest{
 		Sessions: []zellij.SessionUpdate{
 			{
@@ -212,4 +211,122 @@ func TestDaemon_ZellijSessionUpdate(t *testing.T) {
 	err = json.Unmarshal(w.Body.Bytes(), &response)
 	require.NoError(t, err)
 	require.Equal(t, "ok", response["status"])
+
+	req = httptest.NewRequest("GET", "/sessions", nil)
+	w = httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+
+	var sessionsResponse session.SessionListResponse
+	err = json.Unmarshal(w.Body.Bytes(), &sessionsResponse)
+	require.NoError(t, err)
+	require.Len(t, sessionsResponse.Sessions, 2)
+
+	mainSession := findSessionByID(sessionsResponse.Sessions, "main-session")
+	require.NotNil(t, mainSession)
+	require.True(t, mainSession.IsAttached)
+	require.True(t, mainSession.IsActive)
+	require.False(t, mainSession.IsDead)
+
+	bgSession := findSessionByID(sessionsResponse.Sessions, "background-session")
+	require.NotNil(t, bgSession)
+	require.False(t, bgSession.IsAttached)
+	require.True(t, bgSession.IsActive)
+	require.False(t, bgSession.IsDead)
+}
+
+func findSessionByID(sessions []session.Session, id string) *session.Session {
+	for _, s := range sessions {
+		if s.ID == id {
+			return &s
+		}
+	}
+	return nil
+}
+
+func TestDaemon_ZellijSessionUpdate_MarkDeadSessions(t *testing.T) {
+	router := setupTestRouter(t)
+
+	sess1 := &session.Session{
+		ID:          "old-session-1",
+		WorkspaceID: "ws-1",
+		IsActive:    true,
+		IsDead:      false,
+		LastUsedAt:  time.Now(),
+	}
+	sess2 := &session.Session{
+		ID:          "old-session-2",
+		WorkspaceID: "ws-1",
+		IsActive:    true,
+		IsDead:      false,
+		LastUsedAt:  time.Now(),
+	}
+
+	body1, err := json.Marshal(sess1)
+	require.NoError(t, err)
+	req1 := httptest.NewRequest("POST", "/sessions", bytes.NewReader(body1))
+	req1.Header.Set("Content-Type", "application/json")
+	w1 := httptest.NewRecorder()
+	router.ServeHTTP(w1, req1)
+	require.Equal(t, http.StatusCreated, w1.Code)
+
+	body2, err := json.Marshal(sess2)
+	require.NoError(t, err)
+	req2 := httptest.NewRequest("POST", "/sessions", bytes.NewReader(body2))
+	req2.Header.Set("Content-Type", "application/json")
+	w2 := httptest.NewRecorder()
+	router.ServeHTTP(w2, req2)
+	require.Equal(t, http.StatusCreated, w2.Code)
+
+	updateReq := &zellij.UpdateSessionsRequest{
+		Sessions: []zellij.SessionUpdate{
+			{
+				Name:             "old-session-1",
+				IsCurrentSession: true,
+			},
+			{
+				Name:             "new-session",
+				IsCurrentSession: false,
+			},
+		},
+	}
+
+	body, err := json.Marshal(updateReq)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest("PUT", "/zellij/sessions", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+
+	req = httptest.NewRequest("GET", "/sessions", nil)
+	w = httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+
+	var sessionsResponse session.SessionListResponse
+	err = json.Unmarshal(w.Body.Bytes(), &sessionsResponse)
+	require.NoError(t, err)
+	require.Len(t, sessionsResponse.Sessions, 3)
+
+	oldSession1 := findSessionByID(sessionsResponse.Sessions, "old-session-1")
+	require.NotNil(t, oldSession1)
+	require.True(t, oldSession1.IsAttached)
+	require.False(t, oldSession1.IsDead)
+
+	oldSession2 := findSessionByID(sessionsResponse.Sessions, "old-session-2")
+	require.NotNil(t, oldSession2)
+	require.True(t, oldSession2.IsDead)
+
+	newSession := findSessionByID(sessionsResponse.Sessions, "new-session")
+	require.NotNil(t, newSession)
+	require.False(t, newSession.IsAttached)
+	require.False(t, newSession.IsDead)
 }

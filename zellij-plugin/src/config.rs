@@ -44,4 +44,3 @@ impl From<BTreeMap<String, String>> for Config {
         }
     }
 }
-

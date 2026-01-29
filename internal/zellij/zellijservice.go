@@ -2,6 +2,7 @@ package zellij
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	"github.com/eleonorayaya/utena/internal/session"
@@ -9,11 +10,13 @@ import (
 
 type ZellijService struct {
 	sessionService *session.SessionService
+	pipeSender     *PipeSender
 }
 
 func NewZellijService(sessionService *session.SessionService) *ZellijService {
 	return &ZellijService{
 		sessionService: sessionService,
+		pipeSender:     NewPipeSender(),
 	}
 }
 
@@ -74,4 +77,22 @@ func (z *ZellijService) ProcessSessionUpdate(ctx context.Context, req *UpdateSes
 
 func (z *ZellijService) UpdateSessionTimestamp(ctx context.Context, sessionID string) error {
 	return z.sessionService.UpdateSessionTimestamp(ctx, sessionID)
+}
+
+func (z *ZellijService) SendCommandToPlugin(cmd interface{}) error {
+	// Convert interface{} to Command using JSON marshaling
+	var command Command
+
+	// Marshal the input to JSON
+	jsonData, err := json.Marshal(cmd)
+	if err != nil {
+		return err
+	}
+
+	// Unmarshal into Command struct
+	if err := json.Unmarshal(jsonData, &command); err != nil {
+		return err
+	}
+
+	return z.pipeSender.SendCommand(command)
 }

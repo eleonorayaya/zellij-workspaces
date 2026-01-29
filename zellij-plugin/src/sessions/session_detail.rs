@@ -26,4 +26,3 @@ impl PartialEq for SessionDetail {
         self.name == other.name
     }
 }
-

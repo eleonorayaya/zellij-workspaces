@@ -1,5 +1,10 @@
 version: '3'
 
+includes:
+  plugin:
+    taskfile: zellij-plugin/Taskfile.yml
+    dir: ./zellij-plugin
+
 tasks:
   daemon:build:
     sources:

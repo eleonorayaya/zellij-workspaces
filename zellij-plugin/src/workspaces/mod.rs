@@ -6,4 +6,3 @@ mod workspace_manager;
 pub use self::workspace::Workspace;
 pub use self::workspace_dir::WorkspaceDir;
 pub use self::workspace_manager::WorkspaceManager;
-

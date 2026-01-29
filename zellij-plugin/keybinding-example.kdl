@@ -1,0 +1,31 @@
+// Example Zellij keybinding configuration
+// Add this to your Zellij config file (usually ~/.config/zellij/config.kdl)
+
+keybinds {
+    // Add this binding to any mode where you want the session picker available
+    // For example, in "normal" mode:
+    normal {
+        bind "Ctrl p" {
+            // Use WriteToPipe to send a message to the utena-commands pipe
+            // The payload must be valid JSON matching the PluginCommand struct
+            WriteToPipe "utena-commands" "{\"command\":\"open_picker\"}";
+        }
+    }
+
+    // You can also add it to other modes like "locked", "pane", etc.
+    locked {
+        bind "Ctrl p" {
+            WriteToPipe "utena-commands" "{\"command\":\"open_picker\"}";
+        }
+    }
+
+    // Or add it to all modes for global access
+    shared_except "locked" {
+        bind "Ctrl p" {
+            WriteToPipe "utena-commands" "{\"command\":\"open_picker\"}";
+        }
+    }
+}
+
+// Test the pipe command from CLI:
+// zellij pipe --name utena-commands --payload '{"command":"open_picker"}'

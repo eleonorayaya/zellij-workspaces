@@ -152,4 +152,3 @@ impl WorkspaceManager {
         Ok(true)
     }
 }
-

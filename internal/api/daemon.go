@@ -24,6 +24,9 @@ func StartDaemon() {
 	sessionModule := session.NewSessionModule(workspaceModule)
 	zellijModule := zellij.NewZellijModule(sessionModule)
 
+	// Wire up Zellij service to session controller so it can send commands to plugin
+	sessionModule.Controller.SetZellijService(zellijModule.Service)
+
 	if err := workspaceModule.OnAppStart(ctx); err != nil {
 		log.Fatalf("Failed to initialize workspace module: %v", err)
 	}

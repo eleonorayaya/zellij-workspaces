@@ -3,6 +3,7 @@ package session
 import (
 	"context"
 
+	"github.com/eleonorayaya/utena/internal/eventbus"
 	"github.com/eleonorayaya/utena/internal/workspace"
 	"github.com/go-chi/chi/v5"
 )
@@ -14,9 +15,9 @@ type SessionModule struct {
 	Router     *SessionRouter
 }
 
-func NewSessionModule(workspaceModule *workspace.WorkspaceModule) *SessionModule {
+func NewSessionModule(workspaceModule *workspace.WorkspaceModule, bus eventbus.EventBus) *SessionModule {
 	store := NewSessionStore()
-	service := NewSessionService(store, workspaceModule.Store)
+	service := NewSessionService(store, workspaceModule.Store, bus)
 	controller := NewSessionController(service)
 	router := NewSessionRouter(controller)
 

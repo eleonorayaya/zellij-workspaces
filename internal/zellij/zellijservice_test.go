@@ -5,30 +5,37 @@ import (
 	"testing"
 	"time"
 
+	"github.com/eleonorayaya/utena/internal/eventbus"
 	"github.com/eleonorayaya/utena/internal/session"
 	"github.com/eleonorayaya/utena/internal/workspace"
 	"github.com/stretchr/testify/require"
 )
 
-func setupZellijService(t *testing.T) (*ZellijService, *session.SessionStore) {
+func setupZellijService(t *testing.T) (*ZellijService, *session.SessionService, *session.SessionStore) {
 	t.Helper()
 
 	ctx := context.Background()
 
+	bus := eventbus.NewEventBus()
 	sessionStore := session.NewSessionStore()
 	workspaceStore := workspace.NewWorkspaceStore()
 
 	err := workspaceStore.OnAppStart(ctx)
 	require.NoError(t, err)
 
-	sessionService := session.NewSessionService(sessionStore, workspaceStore)
-	zellijService := NewZellijService(sessionService)
+	sessionService := session.NewSessionService(sessionStore, workspaceStore, bus)
+	err = sessionService.OnAppStart(ctx)
+	require.NoError(t, err)
 
-	return zellijService, sessionStore
+	zellijService := NewZellijService(bus)
+	err = zellijService.OnAppStart(ctx)
+	require.NoError(t, err)
+
+	return zellijService, sessionService, sessionStore
 }
 
 func TestZellijService_ProcessSessionUpdate_CreateNewSessions(t *testing.T) {
-	service, sessionStore := setupZellijService(t)
+	service, _, sessionStore := setupZellijService(t)
 	ctx := context.Background()
 
 	req := &UpdateSessionsRequest{
@@ -67,7 +74,7 @@ func TestZellijService_ProcessSessionUpdate_CreateNewSessions(t *testing.T) {
 }
 
 func TestZellijService_ProcessSessionUpdate_UpdateExistingSessions(t *testing.T) {
-	service, sessionStore := setupZellijService(t)
+	service, _, sessionStore := setupZellijService(t)
 	ctx := context.Background()
 
 	oldTime := time.Now().Add(-1 * time.Hour)
@@ -104,7 +111,7 @@ func TestZellijService_ProcessSessionUpdate_UpdateExistingSessions(t *testing.T)
 }
 
 func TestZellijService_ProcessSessionUpdate_MixedCreateAndUpdate(t *testing.T) {
-	service, sessionStore := setupZellijService(t)
+	service, _, sessionStore := setupZellijService(t)
 	ctx := context.Background()
 
 	existingSession := &session.Session{
@@ -149,30 +156,15 @@ func TestZellijService_ProcessSessionUpdate_MixedCreateAndUpdate(t *testing.T) {
 	require.False(t, new.IsDead)
 }
 
-func TestZellijService_UpdateSessionTimestamp(t *testing.T) {
-	service, sessionStore := setupZellijService(t)
-	ctx := context.Background()
+func TestZellijService_CreateSession(t *testing.T) {
+	service, _, _ := setupZellijService(t)
 
-	oldTime := time.Now().Add(-1 * time.Hour)
-	sess := &session.Session{
-		ID:          "session-1",
-		WorkspaceID: "ws-1",
-		LastUsedAt:  oldTime,
-	}
-	sessionStore.Add(sess)
-
-	time.Sleep(10 * time.Millisecond)
-
-	err := service.UpdateSessionTimestamp(ctx, "session-1")
-	require.NoError(t, err)
-
-	updated, err := sessionStore.GetByID("session-1")
-	require.NoError(t, err)
-	require.True(t, updated.LastUsedAt.After(oldTime))
+	err := service.CreateSession("new-session", "/tmp/workspace")
+	require.Error(t, err)
 }
 
 func TestZellijService_ProcessSessionUpdate_MarkDeadSessions(t *testing.T) {
-	service, sessionStore := setupZellijService(t)
+	service, _, sessionStore := setupZellijService(t)
 	ctx := context.Background()
 
 	sess1 := &session.Session{
@@ -232,7 +224,7 @@ func TestZellijService_ProcessSessionUpdate_MarkDeadSessions(t *testing.T) {
 }
 
 func TestZellijService_ProcessSessionUpdate_AllSessionsDead(t *testing.T) {
-	service, sessionStore := setupZellijService(t)
+	service, _, sessionStore := setupZellijService(t)
 	ctx := context.Background()
 
 	sess1 := &session.Session{

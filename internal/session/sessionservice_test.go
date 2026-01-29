@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/eleonorayaya/utena/internal/eventbus"
 	"github.com/eleonorayaya/utena/internal/workspace"
 	"github.com/stretchr/testify/require"
 )
@@ -13,6 +14,7 @@ import (
 func setupSessionService(t *testing.T) (*SessionService, *SessionStore, *workspace.WorkspaceStore) {
 	t.Helper()
 
+	bus := eventbus.NewEventBus()
 	sessionStore := NewSessionStore()
 	workspaceStore := workspace.NewWorkspaceStore()
 
@@ -21,7 +23,7 @@ func setupSessionService(t *testing.T) (*SessionService, *SessionStore, *workspa
 	err := workspaceStore.OnAppStart(ctx)
 	require.NoError(t, err)
 
-	service := NewSessionService(sessionStore, workspaceStore)
+	service := NewSessionService(sessionStore, workspaceStore, bus)
 	return service, sessionStore, workspaceStore
 }
 
@@ -233,39 +235,6 @@ func TestSessionService_DeleteSession_NotFound(t *testing.T) {
 
 	ctx := context.Background()
 	err := service.DeleteSession(ctx, "nonexistent")
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "not found")
-}
-
-func TestSessionService_UpdateSessionTimestamp(t *testing.T) {
-	service, sessionStore, _ := setupSessionService(t)
-
-	oldTime := time.Now().Add(-1 * time.Hour)
-	session := &Session{
-		ID:          "session-1",
-		WorkspaceID: "ws-1",
-		LastUsedAt:  oldTime,
-	}
-	sessionStore.Add(session)
-
-	// Wait a bit to ensure time difference
-	time.Sleep(10 * time.Millisecond)
-
-	ctx := context.Background()
-	err := service.UpdateSessionTimestamp(ctx, "session-1")
-	require.NoError(t, err)
-
-	// Verify timestamp was updated
-	retrieved, err := sessionStore.GetByID("session-1")
-	require.NoError(t, err)
-	require.True(t, retrieved.LastUsedAt.After(oldTime))
-}
-
-func TestSessionService_UpdateSessionTimestamp_NotFound(t *testing.T) {
-	service, _, _ := setupSessionService(t)
-
-	ctx := context.Background()
-	err := service.UpdateSessionTimestamp(ctx, "nonexistent")
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "not found")
 }

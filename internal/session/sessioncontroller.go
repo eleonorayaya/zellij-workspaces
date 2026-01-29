@@ -1,7 +1,6 @@
 package session
 
 import (
-	"log"
 	"net/http"
 
 	"github.com/eleonorayaya/utena/internal/common"
@@ -9,25 +8,14 @@ import (
 	"github.com/go-chi/render"
 )
 
-type ZellijCommandSender interface {
-	SwitchSession(sessionName string) error
-	CreateSession(sessionName, workspacePath string) error
-}
-
 type SessionController struct {
-	service       *SessionService
-	zellijService ZellijCommandSender
+	service *SessionService
 }
 
 func NewSessionController(service *SessionService) *SessionController {
 	return &SessionController{
-		service:       service,
-		zellijService: nil,
+		service: service,
 	}
-}
-
-func (c *SessionController) SetZellijService(zellijService ZellijCommandSender) {
-	c.zellijService = zellijService
 }
 
 func (c *SessionController) ListSessions(w http.ResponseWriter, r *http.Request) {
@@ -85,13 +73,6 @@ func (c *SessionController) CreateSession(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	if c.zellijService != nil {
-		workspacePath := ""
-		if err := c.zellijService.CreateSession(data.Session.ID, workspacePath); err != nil {
-			log.Printf("Failed to send create_session command: %v", err)
-		}
-	}
-
 	response := NewSessionResponse(data.Session)
 	render.Status(r, http.StatusCreated)
 	render.Render(w, r, response)
@@ -125,24 +106,6 @@ func (c *SessionController) DeleteSession(w http.ResponseWriter, r *http.Request
 	if err := c.service.DeleteSession(ctx, id); err != nil {
 		render.Render(w, r, common.ErrNotFound())
 		return
-	}
-
-	render.NoContent(w, r)
-}
-
-func (c *SessionController) UpdateSessionTimestamp(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	id := chi.URLParam(r, "id")
-
-	if err := c.service.UpdateSessionTimestamp(ctx, id); err != nil {
-		render.Render(w, r, common.ErrNotFound())
-		return
-	}
-
-	if c.zellijService != nil {
-		if err := c.zellijService.SwitchSession(id); err != nil {
-			log.Printf("Failed to send switch_session command: %v", err)
-		}
 	}
 
 	render.NoContent(w, r)

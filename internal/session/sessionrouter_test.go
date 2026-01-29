@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/eleonorayaya/utena/internal/eventbus"
 	"github.com/eleonorayaya/utena/internal/workspace"
 	"github.com/stretchr/testify/require"
 )
@@ -17,6 +18,7 @@ import (
 func setupSessionRouter(t *testing.T) (*SessionRouter, *SessionStore, *workspace.WorkspaceStore) {
 	t.Helper()
 
+	bus := eventbus.NewEventBus()
 	sessionStore := NewSessionStore()
 	workspaceStore := workspace.NewWorkspaceStore()
 
@@ -25,7 +27,7 @@ func setupSessionRouter(t *testing.T) (*SessionRouter, *SessionStore, *workspace
 	err := workspaceStore.OnAppStart(ctx)
 	require.NoError(t, err)
 
-	service := NewSessionService(sessionStore, workspaceStore)
+	service := NewSessionService(sessionStore, workspaceStore, bus)
 	controller := NewSessionController(service)
 	router := NewSessionRouter(controller)
 
@@ -256,31 +258,4 @@ func TestSessionRouter_DeleteSession(t *testing.T) {
 	// Verify deletion
 	_, err := sessionStore.GetByID("session-1")
 	require.Error(t, err)
-}
-
-func TestSessionRouter_UpdateSessionTimestamp(t *testing.T) {
-	router, sessionStore, _ := setupSessionRouter(t)
-
-	// Add test session
-	oldTime := time.Now().Add(-1 * time.Hour)
-	session := &Session{ID: "session-1", WorkspaceID: "ws-1", LastUsedAt: oldTime}
-	sessionStore.Add(session)
-
-	// Wait a bit to ensure time difference
-	time.Sleep(10 * time.Millisecond)
-
-	// Create request
-	req := httptest.NewRequest("POST", "/session-1/touch", nil)
-	w := httptest.NewRecorder()
-
-	// Execute
-	router.Routes().ServeHTTP(w, req)
-
-	// Assert
-	require.Equal(t, http.StatusNoContent, w.Code)
-
-	// Verify timestamp was updated
-	retrieved, err := sessionStore.GetByID("session-1")
-	require.NoError(t, err)
-	require.True(t, retrieved.LastUsedAt.After(oldTime))
 }

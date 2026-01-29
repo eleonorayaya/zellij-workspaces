@@ -21,6 +21,9 @@ tasks:
     cmds:
       - go test ./...
 
+  test:
+    cmds:
+      - task: go:test
   fmt:
     cmds:
       - task: go:fmt

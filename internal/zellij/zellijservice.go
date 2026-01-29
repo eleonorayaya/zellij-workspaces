@@ -2,7 +2,6 @@ package zellij
 
 import (
 	"context"
-	"encoding/json"
 	"time"
 
 	"github.com/eleonorayaya/utena/internal/session"
@@ -79,20 +78,37 @@ func (z *ZellijService) UpdateSessionTimestamp(ctx context.Context, sessionID st
 	return z.sessionService.UpdateSessionTimestamp(ctx, sessionID)
 }
 
-func (z *ZellijService) SendCommandToPlugin(cmd interface{}) error {
-	// Convert interface{} to Command using JSON marshaling
-	var command Command
-
-	// Marshal the input to JSON
-	jsonData, err := json.Marshal(cmd)
-	if err != nil {
-		return err
-	}
-
-	// Unmarshal into Command struct
-	if err := json.Unmarshal(jsonData, &command); err != nil {
-		return err
-	}
-
+func (z *ZellijService) sendCommandToPlugin(command Command) error {
 	return z.pipeSender.SendCommand(command)
+}
+
+func (z *ZellijService) OpenPicker() error {
+	cmd := Command{
+		Command: "open_picker",
+	}
+	return z.sendCommandToPlugin(cmd)
+}
+
+func (z *ZellijService) SwitchSession(sessionName string) error {
+	cmd := Command{
+		Command:     "switch_session",
+		SessionName: &sessionName,
+	}
+	return z.sendCommandToPlugin(cmd)
+}
+
+func (z *ZellijService) CreateSession(sessionName, workspacePath string) error {
+	cmd := Command{
+		Command:       "create_session",
+		SessionName:   &sessionName,
+		WorkspacePath: &workspacePath,
+	}
+	return z.sendCommandToPlugin(cmd)
+}
+
+func (z *ZellijService) ClosePicker() error {
+	cmd := Command{
+		Command: "close_picker",
+	}
+	return z.sendCommandToPlugin(cmd)
 }

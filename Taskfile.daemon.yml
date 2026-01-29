@@ -1,0 +1,14 @@
+version: '3'
+
+tasks:
+  build:
+    sources:
+      - 'internal/**/*.go'
+      - 'cmd/daemon/main.go'
+    cmds:
+      - go build -o out/daemon cmd/daemon/main.go
+  run:
+    deps:
+      - daemon:build
+    cmds:
+      - ./out/daemon

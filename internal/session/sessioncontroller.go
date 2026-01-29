@@ -9,9 +9,9 @@ import (
 	"github.com/go-chi/render"
 )
 
-// ZellijCommandSender interface for sending commands to Zellij plugin
 type ZellijCommandSender interface {
-	SendCommandToPlugin(cmd interface{}) error
+	SwitchSession(sessionName string) error
+	CreateSession(sessionName, workspacePath string) error
 }
 
 type SessionController struct {
@@ -26,7 +26,6 @@ func NewSessionController(service *SessionService) *SessionController {
 	}
 }
 
-// SetZellijService sets the Zellij service for sending commands to the plugin
 func (c *SessionController) SetZellijService(zellijService ZellijCommandSender) {
 	c.zellijService = zellijService
 }
@@ -86,22 +85,10 @@ func (c *SessionController) CreateSession(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Send create_session command to Zellij plugin
 	if c.zellijService != nil {
-		// TODO: Get workspace path from WorkspaceID
-		// For now, send empty workspace path - will be improved later
-		cmd := struct {
-			Command       string  `json:"command"`
-			SessionName   *string `json:"session_name,omitempty"`
-			WorkspacePath *string `json:"workspace_path,omitempty"`
-		}{
-			Command:     "create_session",
-			SessionName: &data.Session.ID,
-		}
-
-		if err := c.zellijService.SendCommandToPlugin(cmd); err != nil {
+		workspacePath := ""
+		if err := c.zellijService.CreateSession(data.Session.ID, workspacePath); err != nil {
 			log.Printf("Failed to send create_session command: %v", err)
-			// Don't fail the request, just log the error
 		}
 	}
 
@@ -152,19 +139,9 @@ func (c *SessionController) UpdateSessionTimestamp(w http.ResponseWriter, r *htt
 		return
 	}
 
-	// Send switch_session command to Zellij plugin
 	if c.zellijService != nil {
-		cmd := struct {
-			Command     string  `json:"command"`
-			SessionName *string `json:"session_name,omitempty"`
-		}{
-			Command:     "switch_session",
-			SessionName: &id,
-		}
-
-		if err := c.zellijService.SendCommandToPlugin(cmd); err != nil {
+		if err := c.zellijService.SwitchSession(id); err != nil {
 			log.Printf("Failed to send switch_session command: %v", err)
-			// Don't fail the request, just log the error
 		}
 	}
 

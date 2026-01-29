@@ -63,8 +63,6 @@ impl State {
         &mut self,
         key: KeyWithModifier,
     ) -> Result<bool, Box<dyn std::error::Error>> {
-        // No keyboard shortcuts handled directly by plugin
-        // Use Zellij keybindings to send pipe messages instead
         eprintln!("Key pressed: {:?}", key);
         Ok(false)
     }
@@ -83,12 +81,9 @@ impl State {
             cwd: None,
         };
 
-        // Use context to identify this command when it completes
         let mut context = BTreeMap::new();
         context.insert("source".to_string(), "utena-session-picker".to_string());
 
-        // Use default coordinates (None) for now - TUI will open in default position
-        // TODO: Configure custom floating pane size/position
         open_command_pane_floating(command, None, context);
 
         self.tui_open = true;
@@ -215,7 +210,6 @@ impl ZellijPlugin for State {
                 }
             },
             Event::RunCommandResult(_exit_code, _stdout, _stderr, context) => {
-                // Check if this is our TUI command completing
                 if let Some(source) = context.get("source") {
                     if source == "utena-session-picker" {
                         eprintln!("Session picker TUI closed (command completed)");
@@ -224,8 +218,6 @@ impl ZellijPlugin for State {
                 }
             }
             Event::PaneClosed(_pane_id) => {
-                // When any pane closes, we assume it could be our TUI
-                // This is a simple approach - we could track the specific pane ID if needed
                 if self.tui_open {
                     eprintln!("Pane closed, resetting TUI open state");
                     self.tui_open = false;
@@ -240,12 +232,10 @@ impl ZellijPlugin for State {
     }
 
     fn pipe(&mut self, pipe_message: PipeMessage) -> bool {
-        // Filter for our specific pipe
         if pipe_message.name != "utena-commands" {
             return false;
         }
 
-        // Extract payload from Option<String>
         let payload = match &pipe_message.payload {
             Some(p) => p,
             None => {
@@ -256,7 +246,6 @@ impl ZellijPlugin for State {
 
         eprintln!("Received pipe message: {}", payload);
 
-        // Parse the command
         let command: PluginCommand = match serde_json::from_str(payload) {
             Ok(cmd) => cmd,
             Err(e) => {

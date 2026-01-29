@@ -1,0 +1,17 @@
+version: '3'
+
+tasks:
+  build:
+    sources:
+      - 'internal/**/*.go'
+      - 'cmd/daemon/main.go'
+    cmds:
+      - go build -o out/tui cmd/tui/main.go
+  run:
+    deps:
+      - tui:build
+    env:
+      BUBBLETEA_LOG: tui.log
+    cmds:
+      - ./out/tui
+    interactive: true

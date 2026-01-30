@@ -23,7 +23,6 @@ func NewSessionService(store *SessionStore, workspaceStore *workspace.WorkspaceS
 }
 
 func (s *SessionService) OnAppStart(ctx context.Context) error {
-	s.eventBus.Subscribe(eventbus.ZellijSessionsUpdated, s.handleZellijSessionsUpdated)
 	return nil
 }
 
@@ -65,6 +64,14 @@ func (s *SessionService) CreateSession(ctx context.Context, session *Session) er
 		return err
 	}
 
+	return nil
+}
+
+func (s *SessionService) CreateSessionAndNotify(ctx context.Context, session *Session) error {
+	if err := s.CreateSession(ctx, session); err != nil {
+		return err
+	}
+
 	event := eventbus.Event{
 		Type: eventbus.SessionCreateRequested,
 		Data: eventbus.SessionCreateRequestedEvent{
@@ -91,56 +98,4 @@ func (s *SessionService) UpdateSession(ctx context.Context, session *Session) er
 
 func (s *SessionService) DeleteSession(ctx context.Context, id string) error {
 	return s.store.Delete(id)
-}
-
-func (s *SessionService) handleZellijSessionsUpdated(ctx context.Context, event eventbus.Event) error {
-	data, ok := event.Data.(eventbus.ZellijSessionsUpdatedEvent)
-	if !ok {
-		return nil
-	}
-
-	activeSessions := make(map[string]eventbus.SessionUpdate)
-	for _, sessionUpdate := range data.Sessions {
-		activeSessions[sessionUpdate.Name] = sessionUpdate
-	}
-
-	allSessions, err := s.ListSessions(ctx)
-	if err != nil {
-		return err
-	}
-
-	for _, existingSession := range allSessions {
-		sess := existingSession
-
-		if update, exists := activeSessions[sess.ID]; exists {
-			sess.IsAttached = update.IsCurrentSession
-			sess.IsActive = true
-			sess.IsDead = false
-			sess.LastUsedAt = time.Now()
-			delete(activeSessions, sess.ID)
-		} else {
-			sess.IsDead = true
-		}
-
-		if err := s.UpdateSession(ctx, &sess); err != nil {
-			return err
-		}
-	}
-
-	for sessionID, sessionUpdate := range activeSessions {
-		newSession := &Session{
-			ID:          sessionID,
-			WorkspaceID: "ws-1",
-			IsAttached:  sessionUpdate.IsCurrentSession,
-			IsActive:    true,
-			IsDead:      false,
-			LastUsedAt:  time.Now(),
-		}
-
-		if err := s.CreateSession(ctx, newSession); err != nil {
-			return err
-		}
-	}
-
-	return nil
 }

@@ -68,7 +68,7 @@ func (c *SessionController) CreateSession(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	if err := c.service.CreateSession(ctx, data.Session); err != nil {
+	if err := c.service.CreateSessionAndNotify(ctx, data.Session); err != nil {
 		render.Render(w, r, common.ErrUnknown(err))
 		return
 	}

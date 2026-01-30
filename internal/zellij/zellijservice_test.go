@@ -27,7 +27,7 @@ func setupZellijService(t *testing.T) (*ZellijService, *session.SessionService, 
 	err = sessionService.OnAppStart(ctx)
 	require.NoError(t, err)
 
-	zellijService := NewZellijService(bus)
+	zellijService := NewZellijService(sessionService, bus)
 	err = zellijService.OnAppStart(ctx)
 	require.NoError(t, err)
 

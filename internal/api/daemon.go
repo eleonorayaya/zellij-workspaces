@@ -25,7 +25,7 @@ func StartDaemon() {
 
 	workspaceModule := workspace.NewWorkspaceModule()
 	sessionModule := session.NewSessionModule(workspaceModule, bus)
-	zellijModule := zellij.NewZellijModule(bus)
+	zellijModule := zellij.NewZellijModule(sessionModule, bus)
 
 	if err := workspaceModule.OnAppStart(ctx); err != nil {
 		log.Fatalf("Failed to initialize workspace module: %v", err)

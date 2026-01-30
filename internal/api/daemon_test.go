@@ -30,7 +30,7 @@ func setupTestRouter(t *testing.T) chi.Router {
 	// Initialize modules
 	workspaceModule := workspace.NewWorkspaceModule()
 	sessionModule := session.NewSessionModule(workspaceModule, bus)
-	zellijModule := zellij.NewZellijModule(bus)
+	zellijModule := zellij.NewZellijModule(sessionModule, bus)
 
 	// Call OnAppStart for all modules
 	err := workspaceModule.OnAppStart(ctx)

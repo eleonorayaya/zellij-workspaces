@@ -2,19 +2,23 @@ package zellij
 
 import (
 	"context"
+	"time"
 
 	"github.com/eleonorayaya/utena/internal/eventbus"
+	"github.com/eleonorayaya/utena/internal/session"
 )
 
 type ZellijService struct {
-	eventBus   eventbus.EventBus
-	pipeSender *PipeSender
+	sessionService *session.SessionService
+	eventBus       eventbus.EventBus
+	pipeSender     *PipeSender
 }
 
-func NewZellijService(bus eventbus.EventBus) *ZellijService {
+func NewZellijService(sessionService *session.SessionService, bus eventbus.EventBus) *ZellijService {
 	return &ZellijService{
-		eventBus:   bus,
-		pipeSender: NewPipeSender(),
+		sessionService: sessionService,
+		eventBus:       bus,
+		pipeSender:     NewPipeSender(),
 	}
 }
 
@@ -28,22 +32,50 @@ func (z *ZellijService) OnAppEnd(ctx context.Context) error {
 }
 
 func (z *ZellijService) ProcessSessionUpdate(ctx context.Context, req *UpdateSessionsRequest) error {
-	sessions := make([]eventbus.SessionUpdate, len(req.Sessions))
-	for i, s := range req.Sessions {
-		sessions[i] = eventbus.SessionUpdate{
-			Name:             s.Name,
-			IsCurrentSession: s.IsCurrentSession,
+	activeSessions := make(map[string]SessionUpdate)
+	for _, sessionUpdate := range req.Sessions {
+		activeSessions[sessionUpdate.Name] = sessionUpdate
+	}
+
+	allSessions, err := z.sessionService.ListSessions(ctx)
+	if err != nil {
+		return err
+	}
+
+	for _, existingSession := range allSessions {
+		sess := existingSession
+
+		if update, exists := activeSessions[sess.ID]; exists {
+			sess.IsAttached = update.IsCurrentSession
+			sess.IsActive = true
+			sess.IsDead = false
+			sess.LastUsedAt = time.Now()
+			delete(activeSessions, sess.ID)
+		} else {
+			sess.IsDead = true
+		}
+
+		if err := z.sessionService.UpdateSession(ctx, &sess); err != nil {
+			return err
 		}
 	}
 
-	event := eventbus.Event{
-		Type: eventbus.ZellijSessionsUpdated,
-		Data: eventbus.ZellijSessionsUpdatedEvent{
-			Sessions: sessions,
-		},
+	for sessionID, sessionUpdate := range activeSessions {
+		newSession := &session.Session{
+			ID:          sessionID,
+			WorkspaceID: "ws-1",
+			IsAttached:  sessionUpdate.IsCurrentSession,
+			IsActive:    true,
+			IsDead:      false,
+			LastUsedAt:  time.Now(),
+		}
+
+		if err := z.sessionService.CreateSession(ctx, newSession); err != nil {
+			return err
+		}
 	}
 
-	return z.eventBus.Publish(ctx, event)
+	return nil
 }
 
 func (z *ZellijService) handleSessionCreateRequested(ctx context.Context, event eventbus.Event) error {

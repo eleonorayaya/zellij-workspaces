@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/eleonorayaya/utena/internal/eventbus"
+	"github.com/eleonorayaya/utena/internal/session"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -13,8 +14,8 @@ type ZellijModule struct {
 	Router     *ZellijRouter
 }
 
-func NewZellijModule(bus eventbus.EventBus) *ZellijModule {
-	service := NewZellijService(bus)
+func NewZellijModule(sessionModule *session.SessionModule, bus eventbus.EventBus) *ZellijModule {
+	service := NewZellijService(sessionModule.Service, bus)
 	controller := NewZellijController(service)
 	router := NewZellijRouter(controller)
 

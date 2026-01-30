@@ -109,3 +109,15 @@ This creates a Zellij layout (defined in `dev.kdl`) with panes for:
 ## Testing
 
 Currently no test infrastructure is set up. When adding tests, follow Go convention of `*_test.go` files alongside source files.
+
+## Code Style
+
+### Comments
+
+Do not add comments to code unless explicitly requested by the user. This includes:
+- Explanatory comments describing what code does
+- Comments documenting functions, methods, or types
+- Comments explaining implementation details
+- TODOs or FIXMEs (unless specifically asked)
+
+The code should be self-documenting through clear naming and structure. Only add comments when the user explicitly asks for them.

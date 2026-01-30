@@ -1,44 +1,33 @@
 version: '3'
 
+includes:
+  plugin:
+    taskfile: zellij-plugin/Taskfile.yml
+    dir: ./zellij-plugin
+  daemon:
+    taskfile: Taskfile.daemon.yml
+  tui:
+    taskfile: Taskfile.tui.yml
+
 tasks:
-  daemon:build:
-    sources:
-      - 'internal/**/*.go'
-      - 'cmd/daemon/main.go'
-    cmds:
-      - go build -o out/daemon cmd/daemon/main.go
-  daemon:run:
-    deps:
-      - daemon:build
-    cmds:
-      - ./out/daemon
-
-  tui:build:
-    sources:
-      - 'internal/**/*.go'
-      - 'cmd/daemon/main.go'
-    cmds:
-      - go build -o out/tui cmd/tui/main.go
-  tui:run:
-    deps:
-      - tui:build
-    env:
-      BUBBLETEA_LOG: tui.log
-    cmds:
-      - ./out/tui
-    interactive: true
-
-  fmt:
+  go:fmt:
     sources:
       - '**/*.go'
     cmds:
       - go fmt ./...
-
-  test:
+  go:test:
     sources:
       - '**/*.go'
     cmds:
       - go test ./...
+
+  test:
+    cmds:
+      - task: go:test
+  fmt:
+    cmds:
+      - task: go:fmt
+      - task: plugin:fmt
 
   dev:
     cmds:

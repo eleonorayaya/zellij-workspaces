@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/eleonorayaya/utena/internal/eventbus"
 	"github.com/eleonorayaya/utena/internal/session"
 	"github.com/eleonorayaya/utena/internal/workspace"
 	"github.com/eleonorayaya/utena/internal/zellij"
@@ -20,9 +21,11 @@ func StartDaemon() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	bus := eventbus.NewEventBus()
+
 	workspaceModule := workspace.NewWorkspaceModule()
-	sessionModule := session.NewSessionModule(workspaceModule)
-	zellijModule := zellij.NewZellijModule(sessionModule)
+	sessionModule := session.NewSessionModule(workspaceModule, bus)
+	zellijModule := zellij.NewZellijModule(sessionModule, bus)
 
 	if err := workspaceModule.OnAppStart(ctx); err != nil {
 		log.Fatalf("Failed to initialize workspace module: %v", err)

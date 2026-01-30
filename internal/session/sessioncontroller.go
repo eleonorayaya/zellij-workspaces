@@ -68,7 +68,7 @@ func (c *SessionController) CreateSession(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	if err := c.service.CreateSession(ctx, data.Session); err != nil {
+	if err := c.service.CreateSessionAndNotify(ctx, data.Session); err != nil {
 		render.Render(w, r, common.ErrUnknown(err))
 		return
 	}
@@ -104,18 +104,6 @@ func (c *SessionController) DeleteSession(w http.ResponseWriter, r *http.Request
 	id := chi.URLParam(r, "id")
 
 	if err := c.service.DeleteSession(ctx, id); err != nil {
-		render.Render(w, r, common.ErrNotFound())
-		return
-	}
-
-	render.NoContent(w, r)
-}
-
-func (c *SessionController) UpdateSessionTimestamp(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	id := chi.URLParam(r, "id")
-
-	if err := c.service.UpdateSessionTimestamp(ctx, id); err != nil {
 		render.Render(w, r, common.ErrNotFound())
 		return
 	}

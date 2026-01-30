@@ -22,7 +22,6 @@ func (sr *SessionRouter) Routes() chi.Router {
 	r.Get("/{id}", sr.controller.GetSessionByID)
 	r.Put("/{id}", sr.controller.UpdateSession)
 	r.Delete("/{id}", sr.controller.DeleteSession)
-	r.Post("/{id}/touch", sr.controller.UpdateSessionTimestamp)
 	r.Get("/workspace/{workspaceId}", sr.controller.ListSessionsByWorkspace)
 
 	return r

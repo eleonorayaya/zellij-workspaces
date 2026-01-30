@@ -4,23 +4,25 @@ import (
 	"context"
 	"time"
 
+	"github.com/eleonorayaya/utena/internal/eventbus"
 	"github.com/eleonorayaya/utena/internal/workspace"
 )
 
 type SessionService struct {
 	store          *SessionStore
 	workspaceStore *workspace.WorkspaceStore
+	eventBus       eventbus.EventBus
 }
 
-func NewSessionService(store *SessionStore, workspaceStore *workspace.WorkspaceStore) *SessionService {
+func NewSessionService(store *SessionStore, workspaceStore *workspace.WorkspaceStore, bus eventbus.EventBus) *SessionService {
 	return &SessionService{
 		store:          store,
 		workspaceStore: workspaceStore,
+		eventBus:       bus,
 	}
 }
 
 func (s *SessionService) OnAppStart(ctx context.Context) error {
-
 	return nil
 }
 
@@ -58,7 +60,28 @@ func (s *SessionService) CreateSession(ctx context.Context, session *Session) er
 		session.LastUsedAt = time.Now()
 	}
 
-	return s.store.Add(session)
+	if err := s.store.Add(session); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *SessionService) CreateSessionAndNotify(ctx context.Context, session *Session) error {
+	if err := s.CreateSession(ctx, session); err != nil {
+		return err
+	}
+
+	event := eventbus.Event{
+		Type: eventbus.SessionCreateRequested,
+		Data: eventbus.SessionCreateRequestedEvent{
+			SessionName:   session.ID,
+			WorkspacePath: "",
+		},
+	}
+	s.eventBus.Publish(ctx, event)
+
+	return nil
 }
 
 func (s *SessionService) UpdateSession(ctx context.Context, session *Session) error {
@@ -75,14 +98,4 @@ func (s *SessionService) UpdateSession(ctx context.Context, session *Session) er
 
 func (s *SessionService) DeleteSession(ctx context.Context, id string) error {
 	return s.store.Delete(id)
-}
-
-func (s *SessionService) UpdateSessionTimestamp(ctx context.Context, id string) error {
-	session, err := s.store.GetByID(id)
-	if err != nil {
-		return err
-	}
-
-	session.LastUsedAt = time.Now()
-	return s.store.Update(session)
 }

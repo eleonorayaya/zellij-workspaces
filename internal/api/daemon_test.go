@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/eleonorayaya/utena/internal/eventbus"
 	"github.com/eleonorayaya/utena/internal/session"
 	"github.com/eleonorayaya/utena/internal/workspace"
 	"github.com/eleonorayaya/utena/internal/zellij"
@@ -24,10 +25,12 @@ func setupTestRouter(t *testing.T) chi.Router {
 
 	ctx := context.Background()
 
+	bus := eventbus.NewEventBus()
+
 	// Initialize modules
 	workspaceModule := workspace.NewWorkspaceModule()
-	sessionModule := session.NewSessionModule(workspaceModule)
-	zellijModule := zellij.NewZellijModule(sessionModule)
+	sessionModule := session.NewSessionModule(workspaceModule, bus)
+	zellijModule := zellij.NewZellijModule(sessionModule, bus)
 
 	// Call OnAppStart for all modules
 	err := workspaceModule.OnAppStart(ctx)

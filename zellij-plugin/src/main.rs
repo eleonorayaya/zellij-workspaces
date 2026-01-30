@@ -1,6 +1,7 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json;
 use std::collections::BTreeMap;
+use std::path::PathBuf;
 use zellij_tile::prelude::*;
 
 use config::Config;
@@ -15,6 +16,7 @@ mod workspaces;
 struct State {
     config: Config,
     debug: bool,
+    tui_open: bool,
 }
 
 #[derive(Serialize, Debug)]
@@ -27,6 +29,13 @@ struct SessionUpdate {
 struct SessionUpdateRequest {
     id: String,
     sessions: Vec<SessionUpdate>,
+}
+
+#[derive(Deserialize, Debug)]
+struct PluginCommand {
+    command: String,
+    session_name: Option<String>,
+    workspace_path: Option<String>,
 }
 
 impl State {
@@ -54,52 +63,71 @@ impl State {
         &mut self,
         key: KeyWithModifier,
     ) -> Result<bool, Box<dyn std::error::Error>> {
-        match key.bare_key {
-            // BareKey::Esc => {
-            //     close_self();
-            //
-            //     Ok(false)
-            // }
-            // BareKey::Char('q') => {
-            //     self.debug = !self.debug;
-            //     Ok(true)
-            // }
-            // BareKey::Char('c') => {
-            //     eprintln!("Running command");
-            //     run_command(&["ls"], BTreeMap::new());
-            //
-            //     Ok(true)
-            // }
-            // BareKey::Up | BareKey::Char('k') => {
-            //     self.picker.handle_up();
-            //     Ok(true)
-            // }
-            // BareKey::Down | BareKey::Char('j') => {
-            //     self.picker.handle_down();
-            //     Ok(true)
-            // }
-            // BareKey::Char('r') if key.has_modifiers(&[KeyModifier::Ctrl]) => {
-            //     self.reload();
-            //     Ok(false)
-            // }
-            // BareKey::Char('d') if key.has_modifiers(&[KeyModifier::Shift, KeyModifier::Ctrl]) => {
-            //     self.session_manager.clear_dead_sessions();
-            //
-            //     Ok(false)
-            // }
-            // BareKey::Enter => {
-            //     if let Some(selected) = self.picker.get_selection() {
-            //         let sessions = self.session_manager.list_all_sessions();
-            //         self.workspace_manager
-            //             .activate_workspace(&selected, sessions);
-            //     }
-            //
-            //     close_self();
-            //     Ok(false)
-            // }
+        eprintln!("Key pressed: {:?}", key);
+        Ok(false)
+    }
+
+    fn launch_session_picker(&mut self) {
+        if self.tui_open {
+            eprintln!("Session picker already open, ignoring Ctrl+P");
+            return;
+        }
+
+        eprintln!("Launching session picker TUI");
+
+        let command = CommandToRun {
+            path: PathBuf::from("utena"),
+            args: vec![],
+            cwd: None,
+        };
+
+        let mut context = BTreeMap::new();
+        context.insert("source".to_string(), "utena-session-picker".to_string());
+
+        open_command_pane_floating(command, None, context);
+
+        self.tui_open = true;
+    }
+
+    fn execute_command(&mut self, command: PluginCommand) {
+        eprintln!("Executing command: {:?}", command);
+
+        match command.command.as_str() {
+            "open_picker" => {
+                eprintln!("Opening session picker via pipe command");
+                self.launch_session_picker();
+            }
+
+            "switch_session" => {
+                if let Some(session_name) = command.session_name {
+                    eprintln!("Switching to session: {}", session_name);
+                    switch_session_with_cwd(Some(&session_name), None);
+                    self.tui_open = false;
+                } else {
+                    eprintln!("switch_session missing session_name");
+                }
+            }
+
+            "create_session" => {
+                if let (Some(session_name), Some(workspace_path)) =
+                    (command.session_name, command.workspace_path)
+                {
+                    eprintln!("Creating session: {} at {}", session_name, workspace_path);
+                    let cwd = PathBuf::from(workspace_path);
+                    switch_session_with_cwd(Some(&session_name), Some(cwd));
+                    self.tui_open = false;
+                } else {
+                    eprintln!("create_session missing required fields");
+                }
+            }
+
+            "close_picker" => {
+                eprintln!("Closing session picker");
+                self.tui_open = false;
+            }
+
             _ => {
-                eprintln!("Key pressed: {:#?}", key);
-                Ok(false)
+                eprintln!("Unknown command: {}", command.command);
             }
         }
     }
@@ -130,7 +158,7 @@ impl ZellijPlugin for State {
             EventType::FailedToWriteConfigToDisk,
             EventType::HostFolderChanged,
             EventType::FailedToChangeHostFolder,
-            EventType::WebRequestResult,
+            EventType::PaneClosed, // NEW: Detect when TUI pane closes
         ]);
 
         self.init();
@@ -175,10 +203,26 @@ impl ZellijPlugin for State {
                     should_render = false;
                 }
             },
-            Event::WebRequestResult(_status, _headers, raw_body, _context) => unsafe {
-                let body = String::from_utf8_unchecked(raw_body);
-                eprintln!("Resp body: {:#?}", body)
+            Event::WebRequestResult(status, _headers, raw_body, _context) => unsafe {
+                if status != 200 {
+                    let body = String::from_utf8_unchecked(raw_body);
+                    eprintln!("Resp body: {:#?}", body)
+                }
             },
+            Event::RunCommandResult(_exit_code, _stdout, _stderr, context) => {
+                if let Some(source) = context.get("source") {
+                    if source == "utena-session-picker" {
+                        eprintln!("Session picker TUI closed (command completed)");
+                        self.tui_open = false;
+                    }
+                }
+            }
+            Event::PaneClosed(_pane_id) => {
+                if self.tui_open {
+                    eprintln!("Pane closed, resetting TUI open state");
+                    self.tui_open = false;
+                }
+            }
             _ => {
                 eprintln!("Unhandled event: {:#?}", event)
             }
@@ -188,7 +232,29 @@ impl ZellijPlugin for State {
     }
 
     fn pipe(&mut self, pipe_message: PipeMessage) -> bool {
-        eprintln!("Received pipe: {:#?}", pipe_message);
+        if pipe_message.name != "utena-commands" {
+            return false;
+        }
+
+        let payload = match &pipe_message.payload {
+            Some(p) => p,
+            None => {
+                eprintln!("Received pipe message with no payload");
+                return false;
+            }
+        };
+
+        eprintln!("Received pipe message: {}", payload);
+
+        let command: PluginCommand = match serde_json::from_str(payload) {
+            Ok(cmd) => cmd,
+            Err(e) => {
+                eprintln!("Failed to parse pipe command: {}", e);
+                return false;
+            }
+        };
+
+        self.execute_command(command);
         false
     }
 

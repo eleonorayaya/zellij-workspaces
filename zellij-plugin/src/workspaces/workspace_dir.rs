@@ -11,4 +11,3 @@ impl PartialEq for WorkspaceDir {
         self.path == other.path
     }
 }
-

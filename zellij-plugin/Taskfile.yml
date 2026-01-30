@@ -9,12 +9,20 @@ tasks:
       - 'src/**/*.rs'
     cmds:
       - cargo build --target {{.TARGET}} --release
+  reload:
+    cmds:
+      - zellij action start-or-reload-plugin file:~/.config/zellij/plugins/{{.BIN}}
   deploy:
     deps:
       - build
     cmds:
       - cp "$(pwd)"/target/{{.TARGET}}/release/{{.BIN}} ~/.config/zellij/plugins/
-      - zellij action start-or-reload-plugin file:~/.config/zellij/plugins/{{.BIN}}
+      - task: reload
   logs:
     cmds:
       - tail -f "$(find /var/folders -type f -name 'zellij.log' 2> /dev/null)" 
+  fmt:
+    sources:
+      - 'src/**/*.rs'
+    cmds:
+      - cargo fmt

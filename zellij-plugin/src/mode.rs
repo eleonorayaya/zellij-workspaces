@@ -5,4 +5,3 @@ pub enum PluginMode {
     PickWorkspaceActive,
     Welcome,
 }
-

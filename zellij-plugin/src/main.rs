@@ -4,25 +4,15 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 use zellij_tile::prelude::*;
 
-use config::Config;
-
-mod config;
-mod mode;
-mod sessions;
-mod ui;
-mod workspaces;
-
 #[derive(Default)]
 struct State {
-    config: Config,
-    debug: bool,
     tui_open: bool,
 }
 
 #[derive(Serialize, Debug)]
 struct SessionUpdate {
     name: String,
-    isCurrentSession: bool,
+    is_current_session: bool,
 }
 
 #[derive(Serialize, Debug)]
@@ -39,24 +29,8 @@ struct PluginCommand {
 }
 
 impl State {
-    fn init(&mut self) {
-        // self.session_manager = SessionManager::from(&self.config);
-        // self.workspace_manager = WorkspaceManager::from(&self.config);
-    }
-
-    fn bootstrap(&mut self) {
-        eprintln!("bootstrapping");
-    }
-
     fn render_welcome(&mut self) {
         println!("welcome")
-    }
-
-    fn render_debug_info(&mut self) {}
-
-    fn handle_perm_update(&mut self, _perms: PermissionStatus) -> bool {
-        self.bootstrap();
-        true
     }
 
     fn handle_key_event(
@@ -136,14 +110,11 @@ impl State {
 register_plugin!(State);
 
 impl ZellijPlugin for State {
-    fn load(&mut self, configuration: BTreeMap<String, String>) {
-        self.config = Config::from(configuration);
-
+    fn load(&mut self, _configuration: BTreeMap<String, String>) {
         request_permission(&[
             PermissionType::RunCommands,
             PermissionType::ChangeApplicationState,
             PermissionType::ReadApplicationState,
-            PermissionType::FullHdAccess,
             PermissionType::WebAccess,
         ]);
 
@@ -158,10 +129,8 @@ impl ZellijPlugin for State {
             EventType::FailedToWriteConfigToDisk,
             EventType::HostFolderChanged,
             EventType::FailedToChangeHostFolder,
-            EventType::PaneClosed, // NEW: Detect when TUI pane closes
+            EventType::PaneClosed,
         ]);
-
-        self.init();
     }
 
     fn update(&mut self, event: Event) -> bool {
@@ -170,14 +139,14 @@ impl ZellijPlugin for State {
         match event {
             Event::PermissionRequestResult(perms) => {
                 eprintln!("Perms updated: {:#?}", perms);
-                should_render = self.handle_perm_update(perms);
+                should_render = false;
             }
             Event::SessionUpdate(sessions, _) => {
                 let session_updates: Vec<SessionUpdate> = sessions
                     .iter()
                     .map(|session| SessionUpdate {
                         name: session.name.clone(),
-                        isCurrentSession: session.is_current_session,
+                        is_current_session: session.is_current_session,
                     })
                     .collect();
 
@@ -259,9 +228,6 @@ impl ZellijPlugin for State {
     }
 
     fn render(&mut self, _rows: usize, _cols: usize) {
-        if self.debug {
-            self.render_debug_info();
-        }
         self.render_welcome()
     }
 }

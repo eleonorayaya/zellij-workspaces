@@ -27,8 +27,13 @@ layout {
   pane {
     pane {
       pane split_direction="vertical" {
-        pane size="40%" command="task" name="server" {
-          args "-w" "daemon:run"
+        pane size="40%" {
+          pane size="50%" command="task" name="tui" {
+            args "-w" "tui:deploy"
+          }
+          pane size="50%" command="task" name="server" {
+            args "-w" "daemon:run"
+          }
         }
 
         pane size="40%" split_direction="horizontal" {

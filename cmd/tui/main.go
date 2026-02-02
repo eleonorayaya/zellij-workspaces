@@ -10,6 +10,10 @@ import (
 )
 
 func main() {
+	var (
+		opts []tea.ProgramOption
+	)
+
 	logfilePath := os.Getenv("BUBBLETEA_LOG")
 	if logfilePath != "" {
 		if _, err := tea.LogToFile(logfilePath, "utena"); err != nil {
@@ -17,7 +21,7 @@ func main() {
 		}
 	}
 
-	p := tea.NewProgram(tui.NewApp())
+	p := tea.NewProgram(tui.NewApp(), opts...)
 	if _, err := p.Run(); err != nil {
 		log.Fatal(err)
 	}

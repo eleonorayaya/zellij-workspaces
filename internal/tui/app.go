@@ -6,11 +6,29 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/charmbracelet/bubbles/help"
+	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
+type keyMap struct {
+	Quit key.Binding
+}
+
+func (k keyMap) ShortHelp() []key.Binding {
+	return []key.Binding{k.Quit}
+}
+
+func (k keyMap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{
+		{k.Quit},
+	}
+}
+
 type App struct {
 	resp string
+	keys keyMap
+	help help.Model
 }
 
 func (a App) Init() tea.Cmd {
@@ -21,12 +39,13 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.QuitMsg:
 		return a, tea.Quit
-	case tea.KeyMsg:
-		switch msg.String() {
 
-		case "ctrl+c", "q":
+	case tea.KeyMsg:
+		switch {
+		case key.Matches(msg, a.keys.Quit):
 			return a, tea.Quit
 		}
+
 	case sessionResp:
 		a.resp = msg.body
 	}
@@ -39,11 +58,20 @@ func (a App) View() string {
 	if a.resp != "" {
 		s += "\n" + a.resp
 	}
+	s += "\n\n" + a.help.View(a.keys)
 	return s
 }
 
 func NewApp() App {
-	return App{}
+	return App{
+		keys: keyMap{
+			Quit: key.NewBinding(
+				key.WithKeys("q", "ctrl+c"),
+				key.WithHelp("q", "quit"),
+			),
+		},
+		help: help.New(),
+	}
 }
 
 type sessionResp struct {

@@ -130,6 +130,7 @@ impl ZellijPlugin for State {
             EventType::HostFolderChanged,
             EventType::FailedToChangeHostFolder,
             EventType::PaneClosed,
+            EventType::PaneUpdate,
         ]);
     }
 
@@ -187,11 +188,28 @@ impl ZellijPlugin for State {
                     log_error!("Resp body: {:#?}", body)
                 }
             },
-            Event::RunCommandResult(_exit_code, _stdout, _stderr, context) => {
-                if let Some(source) = context.get("source") {
-                    if source == "utena-session-picker" {
-                        log_info!("Session picker TUI closed (command completed)");
-                        self.tui_open = false;
+            Event::RunCommandResult(_exit_code, _stdout, _stderr, _context) => {}
+            Event::PaneUpdate(pane_manifest) => {
+                log_debug!("PaneUpdate");
+                if self.tui_open {
+                    let utena_pane = pane_manifest
+                        .panes
+                        .iter()
+                        .flat_map(|(_, pane_infos)| pane_infos.iter())
+                        .find(|pane_info| {
+                            if let Some(terminal_command) = &pane_info.terminal_command {
+                                terminal_command.contains("utena")
+                            } else {
+                                false
+                            }
+                        });
+
+                    if let Some(pane_info) = utena_pane {
+                        if pane_info.is_held {
+                            log_info!("TUI command pane is held, closing pane");
+                            self.tui_open = false;
+                            close_focus();
+                        }
                     }
                 }
             }

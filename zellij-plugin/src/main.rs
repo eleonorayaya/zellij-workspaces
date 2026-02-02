@@ -2,7 +2,111 @@ use serde::{Deserialize, Serialize};
 use serde_json;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, OnceLock};
 use zellij_tile::prelude::*;
+
+static LOGGER: OnceLock<Logger> = OnceLock::new();
+
+struct Logger {
+    tracing_enabled: AtomicBool,
+}
+
+impl Logger {
+    fn init() -> Self {
+        Logger {
+            tracing_enabled: AtomicBool::new(false),
+        }
+    }
+
+    fn get() -> &'static Logger {
+        LOGGER.get_or_init(|| Logger::init())
+    }
+
+    fn start_tracing(&self) {
+        use std::fs::File;
+        use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+
+        let log_path = "/host/utena.log";
+        let file_result = File::create(log_path);
+
+        match file_result {
+            Ok(log_file) => {
+                let debug_log = tracing_subscriber::fmt::layer().with_writer(Arc::new(log_file));
+
+                if tracing_subscriber::registry()
+                    .with(debug_log)
+                    .try_init()
+                    .is_ok()
+                {
+                    self.tracing_enabled.store(true, Ordering::Relaxed);
+                    tracing::info!("tracing initialized at {:?}", log_path);
+                } else {
+                    eprintln!("[ERROR] error initializing tracing subscriber");
+                }
+            }
+            Err(error) => {
+                eprintln!("[ERROR] error creating log file: {:?}", error);
+            }
+        }
+    }
+
+    fn debug(&self, message: String) {
+        if self.tracing_enabled.load(Ordering::Relaxed) {
+            tracing::debug!("{}", message);
+        } else {
+            eprintln!("[DEBUG] {}", message);
+        }
+    }
+
+    fn info(&self, message: String) {
+        if self.tracing_enabled.load(Ordering::Relaxed) {
+            tracing::info!("{}", message);
+        } else {
+            eprintln!("[INFO] {}", message);
+        }
+    }
+
+    fn warn(&self, message: String) {
+        if self.tracing_enabled.load(Ordering::Relaxed) {
+            tracing::warn!("{}", message);
+        } else {
+            eprintln!("[WARN] {}", message);
+        }
+    }
+
+    fn error(&self, message: String) {
+        if self.tracing_enabled.load(Ordering::Relaxed) {
+            tracing::error!("{}", message);
+        } else {
+            eprintln!("[ERROR] {}", message);
+        }
+    }
+}
+
+macro_rules! log_debug {
+    ($($arg:tt)*) => {
+        Logger::get().debug(format!($($arg)*))
+    };
+}
+
+macro_rules! log_info {
+    ($($arg:tt)*) => {
+        Logger::get().info(format!($($arg)*))
+    };
+}
+
+macro_rules! log_warn {
+    ($($arg:tt)*) => {
+        Logger::get().warn(format!($($arg)*))
+    };
+}
+
+macro_rules! log_error {
+    ($($arg:tt)*) => {
+        Logger::get().error(format!($($arg)*))
+    };
+}
 
 #[derive(Default)]
 struct State {
@@ -29,25 +133,21 @@ struct PluginCommand {
 }
 
 impl State {
-    fn render_welcome(&mut self) {
-        println!("welcome")
-    }
-
     fn handle_key_event(
         &mut self,
         key: KeyWithModifier,
     ) -> Result<bool, Box<dyn std::error::Error>> {
-        eprintln!("Key pressed: {:?}", key);
+        log_debug!("Key pressed: {:?}", key);
         Ok(false)
     }
 
     fn launch_session_picker(&mut self) {
         if self.tui_open {
-            eprintln!("Session picker already open, ignoring Ctrl+P");
+            log_debug!("Session picker already open, ignoring Ctrl+P");
             return;
         }
 
-        eprintln!("Launching session picker TUI");
+        log_info!("Launching session picker TUI");
 
         let command = CommandToRun {
             path: PathBuf::from("utena"),
@@ -64,21 +164,21 @@ impl State {
     }
 
     fn execute_command(&mut self, command: PluginCommand) {
-        eprintln!("Executing command: {:?}", command);
+        log_debug!("Executing command: {:?}", command);
 
         match command.command.as_str() {
             "open_picker" => {
-                eprintln!("Opening session picker via pipe command");
+                log_info!("Opening session picker via pipe command");
                 self.launch_session_picker();
             }
 
             "switch_session" => {
                 if let Some(session_name) = command.session_name {
-                    eprintln!("Switching to session: {}", session_name);
+                    log_info!("Switching to session: {}", session_name);
                     switch_session_with_cwd(Some(&session_name), None);
                     self.tui_open = false;
                 } else {
-                    eprintln!("switch_session missing session_name");
+                    log_error!("switch_session missing session_name");
                 }
             }
 
@@ -86,22 +186,22 @@ impl State {
                 if let (Some(session_name), Some(workspace_path)) =
                     (command.session_name, command.workspace_path)
                 {
-                    eprintln!("Creating session: {} at {}", session_name, workspace_path);
+                    log_info!("Creating session: {} at {}", session_name, workspace_path);
                     let cwd = PathBuf::from(workspace_path);
                     switch_session_with_cwd(Some(&session_name), Some(cwd));
                     self.tui_open = false;
                 } else {
-                    eprintln!("create_session missing required fields");
+                    log_error!("create_session missing required fields");
                 }
             }
 
             "close_picker" => {
-                eprintln!("Closing session picker");
+                log_info!("Closing session picker");
                 self.tui_open = false;
             }
 
             _ => {
-                eprintln!("Unknown command: {}", command.command);
+                log_warn!("Unknown command: {}", command.command);
             }
         }
     }
@@ -115,6 +215,7 @@ impl ZellijPlugin for State {
             PermissionType::RunCommands,
             PermissionType::ChangeApplicationState,
             PermissionType::ReadApplicationState,
+            PermissionType::FullHdAccess,
             PermissionType::WebAccess,
         ]);
 
@@ -138,8 +239,17 @@ impl ZellijPlugin for State {
 
         match event {
             Event::PermissionRequestResult(perms) => {
-                eprintln!("Perms updated: {:#?}", perms);
+                hide_self();
+
+                log_debug!("Perms updated: {:#?}", perms);
+
+                let host_path = PathBuf::from(&"/var/log");
+                change_host_folder(host_path);
+
                 should_render = false;
+            }
+            Event::HostFolderChanged(_host_folder) => {
+                Logger::get().start_tracing();
             }
             Event::SessionUpdate(sessions, _) => {
                 let session_updates: Vec<SessionUpdate> = sessions
@@ -168,32 +278,32 @@ impl ZellijPlugin for State {
             Event::Key(key) => match self.handle_key_event(key) {
                 Ok(rerender_needed) => should_render = rerender_needed,
                 Err(e) => {
-                    eprintln!("Failed to handle keypress: {:#?}", e);
+                    log_error!("Failed to handle keypress: {:#?}", e);
                     should_render = false;
                 }
             },
             Event::WebRequestResult(status, _headers, raw_body, _context) => unsafe {
                 if status != 200 {
                     let body = String::from_utf8_unchecked(raw_body);
-                    eprintln!("Resp body: {:#?}", body)
+                    log_error!("Resp body: {:#?}", body)
                 }
             },
             Event::RunCommandResult(_exit_code, _stdout, _stderr, context) => {
                 if let Some(source) = context.get("source") {
                     if source == "utena-session-picker" {
-                        eprintln!("Session picker TUI closed (command completed)");
+                        log_info!("Session picker TUI closed (command completed)");
                         self.tui_open = false;
                     }
                 }
             }
             Event::PaneClosed(_pane_id) => {
                 if self.tui_open {
-                    eprintln!("Pane closed, resetting TUI open state");
+                    log_debug!("Pane closed, resetting TUI open state");
                     self.tui_open = false;
                 }
             }
             _ => {
-                eprintln!("Unhandled event: {:#?}", event)
+                log_debug!("Unhandled event: {:#?}", event)
             }
         }
 
@@ -208,17 +318,17 @@ impl ZellijPlugin for State {
         let payload = match &pipe_message.payload {
             Some(p) => p,
             None => {
-                eprintln!("Received pipe message with no payload");
+                log_warn!("Received pipe message with no payload");
                 return false;
             }
         };
 
-        eprintln!("Received pipe message: {}", payload);
+        log_debug!("Received pipe message: {}", payload);
 
         let command: PluginCommand = match serde_json::from_str(payload) {
             Ok(cmd) => cmd,
             Err(e) => {
-                eprintln!("Failed to parse pipe command: {}", e);
+                log_error!("Failed to parse pipe command: {}", e);
                 return false;
             }
         };
@@ -227,7 +337,5 @@ impl ZellijPlugin for State {
         false
     }
 
-    fn render(&mut self, _rows: usize, _cols: usize) {
-        self.render_welcome()
-    }
+    fn render(&mut self, _rows: usize, _cols: usize) {}
 }

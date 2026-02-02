@@ -27,17 +27,23 @@ layout {
   pane {
     pane {
       pane split_direction="vertical" {
-        pane size="40%" command="bash" name="server" {
-          args "-c" "task -w daemon:run"
+        pane size="40%" command="task" name="server" {
+          args "-w" "daemon:run"
         }
 
-        pane size="40%" command="bash" name="logs" cwd="zellij-plugin" {
-          args "-c" "task logs"
+        pane size="40%" split_direction="horizontal" {
+          pane size="20%" command="task" name="zellij logs" {
+            args "plugin:zellijlogs"
+          }
+
+          pane command="task" name="plugin logs" {
+            args "plugin:logs"
+          }
         }
 
         pane split_direction="horizontal" size="20%" {
-          pane size="80%" command="bash" name="COMPILE AND RELOAD PLUGIN" cwd="zellij-plugin" {
-            args "-c" "task -w deploy"
+          pane size="80%" command="task" name="plugin build" {
+            args "-w" "plugin:deploy"
           }
 
           pane {

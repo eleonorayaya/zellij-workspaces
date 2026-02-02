@@ -1,112 +1,11 @@
+mod logger;
+
+use logger::Logger;
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, OnceLock};
 use zellij_tile::prelude::*;
-
-static LOGGER: OnceLock<Logger> = OnceLock::new();
-
-struct Logger {
-    tracing_enabled: AtomicBool,
-}
-
-impl Logger {
-    fn init() -> Self {
-        Logger {
-            tracing_enabled: AtomicBool::new(false),
-        }
-    }
-
-    fn get() -> &'static Logger {
-        LOGGER.get_or_init(|| Logger::init())
-    }
-
-    fn start_tracing(&self) {
-        use std::fs::File;
-        use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-
-        let log_path = "/host/utena.log";
-        let file_result = File::create(log_path);
-
-        match file_result {
-            Ok(log_file) => {
-                let debug_log = tracing_subscriber::fmt::layer().with_writer(Arc::new(log_file));
-
-                if tracing_subscriber::registry()
-                    .with(debug_log)
-                    .try_init()
-                    .is_ok()
-                {
-                    self.tracing_enabled.store(true, Ordering::Relaxed);
-                    tracing::info!("tracing initialized at {:?}", log_path);
-                } else {
-                    eprintln!("[ERROR] error initializing tracing subscriber");
-                }
-            }
-            Err(error) => {
-                eprintln!("[ERROR] error creating log file: {:?}", error);
-            }
-        }
-    }
-
-    fn debug(&self, message: String) {
-        if self.tracing_enabled.load(Ordering::Relaxed) {
-            tracing::debug!("{}", message);
-        } else {
-            eprintln!("[DEBUG] {}", message);
-        }
-    }
-
-    fn info(&self, message: String) {
-        if self.tracing_enabled.load(Ordering::Relaxed) {
-            tracing::info!("{}", message);
-        } else {
-            eprintln!("[INFO] {}", message);
-        }
-    }
-
-    fn warn(&self, message: String) {
-        if self.tracing_enabled.load(Ordering::Relaxed) {
-            tracing::warn!("{}", message);
-        } else {
-            eprintln!("[WARN] {}", message);
-        }
-    }
-
-    fn error(&self, message: String) {
-        if self.tracing_enabled.load(Ordering::Relaxed) {
-            tracing::error!("{}", message);
-        } else {
-            eprintln!("[ERROR] {}", message);
-        }
-    }
-}
-
-macro_rules! log_debug {
-    ($($arg:tt)*) => {
-        Logger::get().debug(format!($($arg)*))
-    };
-}
-
-macro_rules! log_info {
-    ($($arg:tt)*) => {
-        Logger::get().info(format!($($arg)*))
-    };
-}
-
-macro_rules! log_warn {
-    ($($arg:tt)*) => {
-        Logger::get().warn(format!($($arg)*))
-    };
-}
-
-macro_rules! log_error {
-    ($($arg:tt)*) => {
-        Logger::get().error(format!($($arg)*))
-    };
-}
 
 #[derive(Default)]
 struct State {

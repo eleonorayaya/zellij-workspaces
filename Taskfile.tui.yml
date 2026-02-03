@@ -1,5 +1,8 @@
 version: '3'
 
+env:
+  BUBBLETEA_LOG: tui.log
+
 tasks:
   build:
     sources:
@@ -7,11 +10,17 @@ tasks:
       - 'cmd/daemon/main.go'
     cmds:
       - go build -o out/tui cmd/tui/main.go
+  deploy:
+    deps:
+      - build
+    cmds:
+      - cp ./out/tui /usr/local/bin/utena
   run:
     deps:
-      - tui:build
-    env:
-      BUBBLETEA_LOG: tui.log
+      - build
     cmds:
       - ./out/tui
     interactive: true
+  logs:
+    cmds:
+      - tail -f "$BUBBLETEA_LOG"
